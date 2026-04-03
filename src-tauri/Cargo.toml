@@ -25,6 +25,7 @@ chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 quick-xml = { version = "0.36", features = ["serialize"] }
 strsim = "0.11"
+regex = "1"
 dirs = "5"
 thiserror = "1"
 anyhow = "1"

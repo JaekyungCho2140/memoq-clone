@@ -50,6 +50,27 @@ impl TbDb {
         Ok(())
     }
 
+    pub fn all(&self) -> Result<Vec<TbEntry>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id,source_term,target_term,source_lang,target_lang,notes,forbidden FROM entries",
+        )?;
+        let entries = stmt
+            .query_map([], |row| {
+                Ok(TbEntry {
+                    id: row.get(0)?,
+                    source_term: row.get(1)?,
+                    target_term: row.get(2)?,
+                    source_lang: row.get(3)?,
+                    target_lang: row.get(4)?,
+                    notes: row.get(5)?,
+                    forbidden: row.get::<_, i32>(6)? != 0,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(entries)
+    }
+
     pub fn search(&self, term: &str, source_lang: &str) -> Result<Vec<TbEntry>> {
         let pattern = format!("%{term}%");
         let mut stmt = self.conn.prepare(

@@ -1,12 +1,14 @@
 mod commands;
 pub mod models;
 pub mod parser;
+pub mod qa;
 pub mod tb;
 pub mod tm;
 
 use commands::{
     export::{export_file, save_segment},
     parser::{export_xliff, parse_file},
+    qa::run_qa_check,
     tb::*,
     tm::*,
 };
@@ -27,6 +29,7 @@ pub fn run() {
             tb_create,
             tb_add,
             tb_lookup,
+            run_qa_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

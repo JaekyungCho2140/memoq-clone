@@ -46,4 +46,8 @@ impl TbEngine {
     pub fn lookup(&self, term: &str, source_lang: &str) -> Result<Vec<TbEntry>> {
         self.db.search(term, source_lang)
     }
+
+    pub fn all_entries(&self) -> Result<Vec<TbEntry>> {
+        self.db.all()
+    }
 }

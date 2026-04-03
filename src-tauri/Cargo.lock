@@ -2164,6 +2164,7 @@ dependencies = [
  "env_logger",
  "log",
  "quick-xml 0.36.2",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
