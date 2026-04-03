@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useProjectStore } from "../../stores/projectStore";
 import { useTbStore } from "../../stores/tbStore";
-import { createTb, lookupTb, addToTb } from "../../tauri/commands";
+import { adapter } from "../../adapters";
 import type { TbEntry } from "../../types";
 
 export function TbPanel() {
@@ -21,7 +21,7 @@ export function TbPanel() {
   // Auto-create TB for the project if none exists
   useEffect(() => {
     if (!activeTbId && project) {
-      createTb(`${project.name} TB`)
+      adapter.createTb(`${project.name} TB`)
         .then((id) => setActiveTbId(id))
         .catch(() => {/* ignore */});
     }
@@ -33,7 +33,7 @@ export function TbPanel() {
       setEntries([]);
       return;
     }
-    lookupTb({
+    adapter.lookupTb({
       tbId: activeTbId,
       term: currentSegment.source,
       sourceLang: project.sourceLang,
@@ -45,7 +45,7 @@ export function TbPanel() {
   const handleCreateTb = async () => {
     if (!tbName.trim()) return;
     try {
-      const id = await createTb(tbName.trim());
+      const id = await adapter.createTb(tbName.trim());
       setActiveTbId(id);
       setTbName("");
       setCreating(false);
@@ -57,7 +57,7 @@ export function TbPanel() {
   const handleAddTerm = async () => {
     if (!activeTbId || !project || !newSource.trim() || !newTarget.trim()) return;
     try {
-      await addToTb(
+      await adapter.addToTb(
         activeTbId,
         newSource.trim(),
         newTarget.trim(),
@@ -73,7 +73,7 @@ export function TbPanel() {
       setShowAddTerm(false);
       // Refresh
       if (currentSegment) {
-        const fresh = await lookupTb({
+        const fresh = await adapter.lookupTb({
           tbId: activeTbId,
           term: currentSegment.source,
           sourceLang: project.sourceLang,

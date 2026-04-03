@@ -125,6 +125,7 @@ pub fn parse(path: &str) -> Result<Project> {
         target_lang: "ko-KR".to_string(),
         created_at: Utc::now(),
         segments,
+        files: Vec::new(),
     })
 }
 

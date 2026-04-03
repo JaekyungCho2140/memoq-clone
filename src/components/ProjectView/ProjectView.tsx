@@ -1,14 +1,16 @@
-import { open } from "@tauri-apps/plugin-dialog";
-import { parseFile } from "../../tauri/commands";
+import { adapter } from "../../adapters";
 import { useProjectStore } from "../../stores/projectStore";
 
 export function ProjectView() {
   const setProject = useProjectStore((s) => s.setProject);
 
   const handleOpenFile = async () => {
-    const selected = await open({ multiple: false, filters: [{ name: "Translation Files", extensions: ["xliff", "xlf", "docx"] }] });
-    if (!selected || typeof selected !== "string") return;
-    const project = await parseFile(selected);
+    const fileRef = await adapter.openFileDialog({
+      multiple: false,
+      filters: [{ name: "Translation Files", extensions: ["xliff", "xlf", "docx"] }],
+    });
+    if (!fileRef) return;
+    const project = await adapter.parseFile(fileRef);
     setProject(project);
   };
 

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams, QaIssue, MtTranslateParams, MtResult, MtSettings, ProjectStats, RecentProjects } from "../types";
+import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams, QaIssue, MtTranslateParams, MtResult, MtSettings, ProjectStats, RecentProjects, LiveDocsLibrary, LiveDocsMatch } from "../types";
 
 export async function parseFile(path: string): Promise<Project> {
   return invoke<Project>("parse_file", { path });
@@ -151,4 +151,46 @@ export async function getProjectStats(project: Project): Promise<ProjectStats> {
  */
 export async function getRecentProjects(): Promise<RecentProjects> {
   return invoke<RecentProjects>("get_recent_projects");
+}
+
+// LiveDocs commands (Phase 2)
+
+/**
+ * Create a new LiveDocs library with the given name.
+ * Backend command: livedocs_create_library
+ */
+export async function liveDocsCreateLibrary(name: string): Promise<LiveDocsLibrary> {
+  return invoke<LiveDocsLibrary>("livedocs_create_library", { name });
+}
+
+/**
+ * Add a document (file path) to an existing library.
+ * Backend command: livedocs_add_document
+ */
+export async function liveDocsAddDocument(
+  libId: string,
+  path: string,
+): Promise<LiveDocsLibrary> {
+  return invoke<LiveDocsLibrary>("livedocs_add_document", { libId, path });
+}
+
+/**
+ * List all LiveDocs libraries.
+ * Backend command: livedocs_list_libraries
+ */
+export async function liveDocsListLibraries(): Promise<LiveDocsLibrary[]> {
+  return invoke<LiveDocsLibrary[]>("livedocs_list_libraries");
+}
+
+/**
+ * Search across a library (or all libraries if libId is null) for sentences
+ * similar to the given query.
+ * Backend command: livedocs_search
+ */
+export async function liveDocsSearch(
+  query: string,
+  libId: string,
+  minScore: number,
+): Promise<LiveDocsMatch[]> {
+  return invoke<LiveDocsMatch[]>("livedocs_search", { query, libId, minScore });
 }

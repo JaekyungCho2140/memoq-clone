@@ -37,14 +37,60 @@ pub struct Segment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectFile {
+    pub id: String,
+    /// Absolute path to the source file
+    pub path: String,
+    pub segments: Vec<Segment>,
+}
+
+impl ProjectFile {
+    /// Returns (total, translated_or_confirmed, confirmed)
+    pub fn completion_stats(&self) -> (usize, usize, usize) {
+        let total = self.segments.len();
+        let translated = self
+            .segments
+            .iter()
+            .filter(|s| {
+                matches!(
+                    s.status,
+                    SegmentStatus::Translated | SegmentStatus::Confirmed
+                )
+            })
+            .count();
+        let confirmed = self
+            .segments
+            .iter()
+            .filter(|s| s.status == SegmentStatus::Confirmed)
+            .count();
+        (total, translated, confirmed)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectStats {
+    pub total_segments: usize,
+    pub translated: usize,
+    pub confirmed: usize,
+    pub completion_pct: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
     pub name: String,
-    /// Absolute path to the original source file (used for export)
-    pub source_path: String,
     pub source_lang: String,
     pub target_lang: String,
     pub created_at: DateTime<Utc>,
+    /// Multi-file support: each file contains its own segment list
+    #[serde(default)]
+    pub files: Vec<ProjectFile>,
+    // Legacy single-file fields kept for backward compatibility
+    #[serde(default)]
+    pub source_path: String,
+    #[serde(default)]
     pub segments: Vec<Segment>,
 }
 

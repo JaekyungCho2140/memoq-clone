@@ -8,11 +8,10 @@ pub fn init_pool(database_url: &str) -> anyhow::Result<DbPool> {
     let path = database_url
         .strip_prefix("sqlite://")
         .unwrap_or(database_url);
-    let manager = SqliteConnectionManager::file(path)
-        .with_init(|c| {
-            c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
-            Ok(())
-        });
+    let manager = SqliteConnectionManager::file(path).with_init(|c| {
+        c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
+        Ok(())
+    });
     let pool = Pool::new(manager)?;
     Ok(pool)
 }
@@ -64,19 +63,72 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
             created_at TEXT NOT NULL,
             revoked    INTEGER NOT NULL DEFAULT 0
         );
+
+        CREATE TABLE IF NOT EXISTS projects (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            source_lang TEXT NOT NULL,
+            target_lang TEXT NOT NULL,
+            owner_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_files (
+            id         TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            name       TEXT NOT NULL,
+            file_path  TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS segments (
+            id         TEXT PRIMARY KEY,
+            file_id    TEXT NOT NULL REFERENCES project_files(id) ON DELETE CASCADE,
+            seg_order  INTEGER NOT NULL,
+            source     TEXT NOT NULL,
+            target     TEXT NOT NULL DEFAULT '',
+            status     TEXT NOT NULL DEFAULT 'untranslated',
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS tm_entries (
+            id          TEXT PRIMARY KEY,
+            source      TEXT NOT NULL,
+            target      TEXT NOT NULL,
+            source_lang TEXT NOT NULL,
+            target_lang TEXT NOT NULL,
+            owner_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+            created_at  TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS tb_entries (
+            id          TEXT PRIMARY KEY,
+            source_term TEXT NOT NULL,
+            target_term TEXT NOT NULL,
+            source_lang TEXT NOT NULL,
+            target_lang TEXT NOT NULL,
+            notes       TEXT NOT NULL DEFAULT '',
+            forbidden   INTEGER NOT NULL DEFAULT 0,
+            owner_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+            created_at  TEXT NOT NULL
+        );
         "#,
     )
 }
 
-/// Run a blocking database operation on a thread pool via spawn_blocking.
-pub async fn run_blocking<F, T>(pool: DbPool, f: F) -> anyhow::Result<T>
+/// Run a blocking database closure on Tokio's blocking thread pool.
+pub async fn run_db<F, T>(pool: DbPool, f: F) -> crate::error::AppResult<T>
 where
-    F: FnOnce(&Connection) -> anyhow::Result<T> + Send + 'static,
+    F: FnOnce(&Connection) -> crate::error::AppResult<T> + Send + 'static,
     T: Send + 'static,
 {
     tokio::task::spawn_blocking(move || {
-        let conn = pool.get()?;
+        let conn = pool
+            .get()
+            .map_err(|e| crate::error::AppError::Internal(anyhow::anyhow!(e)))?;
         f(&conn)
     })
-    .await?
+    .await
+    .map_err(|e| crate::error::AppError::Internal(anyhow::anyhow!("spawn_blocking: {}", e)))?
 }

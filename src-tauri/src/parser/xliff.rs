@@ -201,6 +201,7 @@ fn parse_v1(content: &str, path: &str) -> Result<Project> {
         target_lang,
         created_at: Utc::now(),
         segments,
+        files: Vec::new(),
     })
 }
 
@@ -325,6 +326,7 @@ fn parse_v2(content: &str, path: &str) -> Result<Project> {
         target_lang,
         created_at: Utc::now(),
         segments,
+        files: Vec::new(),
     })
 }
 

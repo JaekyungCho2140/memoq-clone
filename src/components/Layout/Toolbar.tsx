@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { save } from "@tauri-apps/plugin-dialog";
+import { adapter } from "../../adapters";
 import { useProjectStore } from "../../stores/projectStore";
 import { useQaStore } from "../../stores/qaStore";
-import { exportFile, runQaCheck } from "../../tauri/commands";
 
 export function Toolbar() {
-  const { project, closeProject } = useProjectStore();
+  const { project, closeProject, backToDashboard } = useProjectStore();
   const { setIssues, setRunning, errorCount } = useQaStore();
   const [showExportWarning, setShowExportWarning] = useState(false);
   const [pendingExportPath, setPendingExportPath] = useState<string | null>(null);
@@ -31,7 +30,7 @@ export function Toolbar() {
   const handleRunQa = async () => {
     setRunning(true);
     try {
-      const issues = await runQaCheck(project.id);
+      const issues = await adapter.runQaCheck(project.id);
       setIssues(issues);
     } catch {
       setIssues([]);
@@ -42,7 +41,7 @@ export function Toolbar() {
 
   const doExport = async (outputPath: string) => {
     try {
-      await exportFile(project.segments, project.sourcePath, outputPath);
+      await adapter.exportFile(project.segments, project.sourcePath, outputPath);
       alert(`내보내기 완료: ${outputPath}`);
     } catch (e) {
       alert(`내보내기 실패: ${e}`);
@@ -51,7 +50,7 @@ export function Toolbar() {
 
   const handleExport = async () => {
     const ext = project.sourcePath.endsWith(".docx") ? "docx" : "xliff";
-    const outputPath = await save({
+    const outputPath = await adapter.saveFileDialog({
       defaultPath: `translated.${ext}`,
       filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
     });
@@ -94,6 +93,7 @@ export function Toolbar() {
             QA 체크 (F9)
           </button>
           <button className="btn-toolbar" onClick={handleExport}>내보내기</button>
+          <button className="btn-toolbar btn-secondary" onClick={backToDashboard} title="대시보드로 돌아가기">← 대시보드</button>
           <button className="btn-toolbar btn-danger" onClick={closeProject}>닫기</button>
         </div>
       </div>

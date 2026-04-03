@@ -10,7 +10,7 @@ use crate::{
         jwt::{decode_token, encode_token, TokenKind},
         middleware::AuthUser,
     },
-    db::DbPool,
+    db::{run_db, DbPool},
     error::{AppError, AppResult},
     models::user::{User, UserProfile},
 };
@@ -360,16 +360,3 @@ pub(crate) fn hash_token(token: &str) -> String {
     format!("{:016x}", hash)
 }
 
-/// Run a blocking database closure on Tokio's blocking thread pool.
-async fn run_db<F, T>(pool: DbPool, f: F) -> AppResult<T>
-where
-    F: FnOnce(&rusqlite::Connection) -> AppResult<T> + Send + 'static,
-    T: Send + 'static,
-{
-    tokio::task::spawn_blocking(move || {
-        let conn = pool.get().map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-        f(&conn)
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!("spawn_blocking: {}", e)))?
-}

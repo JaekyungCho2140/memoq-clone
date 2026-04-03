@@ -120,3 +120,23 @@ export interface ProjectStats {
 
 /** Recently opened projects — Rust returns Vec<String> (paths only) */
 export type RecentProjects = string[];
+
+// Feature — LiveDocs (Phase 2)
+
+export interface LiveDocsDocument {
+  id: string;
+  path: string;
+  sentences: string[];
+}
+
+export interface LiveDocsLibrary {
+  id: string;
+  name: string;
+  documents: LiveDocsDocument[];
+}
+
+export interface LiveDocsMatch {
+  sentence: string;
+  docPath: string;
+  score: number;
+}

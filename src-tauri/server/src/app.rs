@@ -20,7 +20,8 @@ pub fn build_router(pool: DbPool, config: Config) -> Router {
 
     Router::new()
         .route("/health", get(routes::health))
-        .nest("/api/auth", routes::auth_routes(state))
+        .nest("/api/auth", routes::auth_routes(state.clone()))
+        .nest("/api", routes::api_routes(state))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
 }

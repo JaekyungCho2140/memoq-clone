@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { adapter, fileRefFromDrop } from "../../adapters";
 import { useProjectStore } from "../../stores/projectStore";
-import { addFileToProject, saveProject } from "../../tauri/commands";
 import { ProjectSettingsModal } from "./ProjectSettingsModal";
 import type { Segment } from "../../types";
 
@@ -33,13 +32,13 @@ export function ProjectDashboard() {
   };
 
   const handleAddFile = async () => {
-    const selected = await open({
+    const fileRef = await adapter.openFileDialog({
       multiple: false,
       filters: [{ name: "Translation Files", extensions: ["xliff", "xlf", "docx"] }],
     });
-    if (!selected || typeof selected !== "string") return;
+    if (!fileRef) return;
     try {
-      const updated = await addFileToProject(project, selected);
+      const updated = await adapter.addFileToProject(project, fileRef);
       useProjectStore.getState().setProject(updated);
     } catch (e) {
       alert(`파일 추가 실패: ${e}`);
@@ -58,15 +57,14 @@ export function ProjectDashboard() {
         alert("지원하지 않는 파일 형식입니다. XLIFF 또는 DOCX 파일을 사용하세요.");
         return;
       }
-      // Tauri drag-and-drop provides file paths via the DataTransfer API
-      const filePaths = supported.map((f) => (f as { path?: string }).path ?? f.name);
       let currentProject = useProjectStore.getState().project;
       if (!currentProject) return;
-      for (const filePath of filePaths) {
+      for (const file of supported) {
+        const fileRef = fileRefFromDrop(file);
         try {
-          currentProject = await addFileToProject(currentProject, filePath);
+          currentProject = await adapter.addFileToProject(currentProject, fileRef);
         } catch (err) {
-          alert(`파일 추가 실패 (${filePath}): ${err}`);
+          alert(`파일 추가 실패 (${file.name}): ${err}`);
         }
       }
       useProjectStore.getState().setProject(currentProject);
@@ -75,14 +73,14 @@ export function ProjectDashboard() {
   );
 
   const handleSaveProject = async () => {
-    const outputPath = await save({
+    const outputPath = await adapter.saveFileDialog({
       filters: [{ name: "memoQ Clone Project", extensions: ["mqclone"] }],
       defaultPath: `${project.name}.mqclone`,
     });
     if (!outputPath) return;
     setSaving(true);
     try {
-      await saveProject(project, outputPath);
+      await adapter.saveProject(project, outputPath);
       alert("프로젝트가 저장되었습니다.");
     } catch (e) {
       alert(`프로젝트 저장 실패: ${e}`);

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
-import { parseFile, getRecentProjects, loadProject } from "../../tauri/commands";
+import { adapter } from "../../adapters";
 import { useProjectStore } from "../../stores/projectStore";
 
 export function HomePage() {
@@ -9,30 +8,30 @@ export function HomePage() {
   const setProject = useProjectStore((s) => s.setProject);
 
   useEffect(() => {
-    getRecentProjects()
+    adapter.getRecentProjects()
       .then(setRecentProjects)
       .catch(() => setRecentProjects([]))
       .finally(() => setLoadingRecent(false));
   }, []);
 
   const handleOpenFile = async () => {
-    const selected = await open({
+    const fileRef = await adapter.openFileDialog({
       multiple: false,
       filters: [{ name: "Translation Files", extensions: ["xliff", "xlf", "docx"] }],
     });
-    if (!selected || typeof selected !== "string") return;
-    const project = await parseFile(selected);
+    if (!fileRef) return;
+    const project = await adapter.parseFile(fileRef);
     setProject(project);
   };
 
   const handleOpenProject = async () => {
-    const selected = await open({
+    const fileRef = await adapter.openFileDialog({
       multiple: false,
       filters: [{ name: "memoQ Clone Project", extensions: ["mqclone"] }],
     });
-    if (!selected || typeof selected !== "string") return;
+    if (!fileRef) return;
     try {
-      const project = await loadProject(selected);
+      const project = await adapter.loadProject(fileRef);
       setProject(project);
     } catch (e) {
       alert(`프로젝트 파일을 불러오는 데 실패했습니다: ${e}`);
@@ -41,7 +40,7 @@ export function HomePage() {
 
   const handleOpenRecent = async (projectPath: string) => {
     try {
-      const project = await loadProject(projectPath);
+      const project = await adapter.loadProject(projectPath);
       setProject(project);
     } catch (e) {
       alert(`프로젝트를 불러오는 데 실패했습니다: ${e}`);
