@@ -1,25 +1,46 @@
 import { useProjectStore } from "../../stores/projectStore";
+import type { SegmentStatus } from "../../types";
 
-const STATUS_COLORS: Record<string, string> = {
-  untranslated: "#e0e0e0",
-  draft: "#fff9c4",
-  translated: "#c8e6c9",
-  confirmed: "#1b5e20",
+const STATUS_BADGE: Record<SegmentStatus, { label: string; bg: string }> = {
+  untranslated: { label: "미번역", bg: "#555" },
+  draft:        { label: "초안",   bg: "#b8860b" },
+  translated:   { label: "번역됨", bg: "#2e7d32" },
+  confirmed:    { label: "확정",   bg: "#1565c0" },
 };
 
 export function SegmentList() {
   const { project, currentSegmentIndex, setCurrentSegmentIndex } = useProjectStore();
   if (!project) return null;
+
   return (
     <div className="segment-list">
-      {project.segments.map((seg, idx) => (
-        <div key={seg.id} className={`segment-row ${idx === currentSegmentIndex ? "active" : ""}`}
-          onClick={() => setCurrentSegmentIndex(idx)}
-          style={{ borderLeft: `4px solid ${STATUS_COLORS[seg.status]}` }}>
-          <span className="seg-number">{seg.order + 1}</span>
-          <span className="seg-source">{seg.source.slice(0, 80)}</span>
-        </div>
-      ))}
+      <div className="segment-list-header">
+        <span className="col-num">#</span>
+        <span className="col-source">소스</span>
+        <span className="col-target">타겟</span>
+        <span className="col-status">상태</span>
+      </div>
+      {project.segments.map((seg, idx) => {
+        const badge = STATUS_BADGE[seg.status];
+        return (
+          <div
+            key={seg.id}
+            className={`segment-row${idx === currentSegmentIndex ? " active" : ""}`}
+            onClick={() => setCurrentSegmentIndex(idx)}
+          >
+            <span className="col-num">{seg.order + 1}</span>
+            <span className="col-source">{seg.source.slice(0, 60)}</span>
+            <span className="col-target">
+              {seg.target ? seg.target.slice(0, 60) : <em>—</em>}
+            </span>
+            <span className="col-status">
+              <span className="status-badge" style={{ background: badge.bg }}>
+                {badge.label}
+              </span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
