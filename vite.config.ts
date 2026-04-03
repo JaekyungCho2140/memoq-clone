@@ -26,6 +26,7 @@ export default defineConfig(async () => ({
       include: [
         "src/stores/**/*.ts",
         "src/tauri/**/*.ts",
+        "src/adapters/**/*.ts",
         "src/components/TmPanel/**/*.tsx",
         "src/components/TbPanel/**/*.tsx",
       ],
