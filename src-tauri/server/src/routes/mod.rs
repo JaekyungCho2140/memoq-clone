@@ -16,6 +16,7 @@ use crate::{
         handlers::{login, logout, me, refresh_token, register},
         middleware::require_auth,
     },
+    ws,
 };
 
 pub fn auth_routes(state: AppState) -> Router {
@@ -33,7 +34,8 @@ pub fn auth_routes(state: AppState) -> Router {
 }
 
 pub fn api_routes(state: AppState) -> Router {
-    let inner = Router::new()
+    // Protected REST routes — require Authorization header
+    let protected = Router::new()
         // Projects
         .route("/projects", get(projects::list_projects).post(projects::create_project))
         .route(
@@ -50,17 +52,23 @@ pub fn api_routes(state: AppState) -> Router {
             "/projects/:projectId/segments/:segId",
             patch(segments::update_segment),
         )
-        // TM — GET /api/tm lists all; GET /api/tm?source=...&source_lang=...&target_lang=... searches
+        // TM
         .route("/tm", get(tm::list_or_search_tm).post(tm::create_tm))
         .route("/tm/:id", delete(tm::delete_tm))
         // TB
         .route("/tb", get(tb::list_tb).post(tb::create_tb))
         .route("/tb/:id", patch(tb::update_tb).delete(tb::delete_tb))
-        // Apply JWT auth to all /api/* routes
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
+        .with_state(state.clone());
+
+    // WebSocket route — auth via ?token= query param, no Authorization header needed
+    let ws_routes = Router::new()
+        .route("/projects/:projectId/ws", get(ws::ws_handler))
         .with_state(state);
 
-    inner
+    Router::new()
+        .merge(protected)
+        .merge(ws_routes)
 }
 
 /// Health check (public)
