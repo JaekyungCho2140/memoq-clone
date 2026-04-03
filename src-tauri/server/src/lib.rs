@@ -6,3 +6,4 @@ pub mod error;
 pub mod models;
 pub mod parser;
 pub mod routes;
+pub mod ws;

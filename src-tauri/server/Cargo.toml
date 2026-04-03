@@ -12,7 +12,7 @@ name = "server"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.7", features = ["macros", "multipart"] }
+axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
@@ -46,3 +46,6 @@ zip = "2"
 [dev-dependencies]
 axum-test = "14"
 tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.21"
+futures = "0.3"
+reqwest = { version = "0.12", features = ["json"] }

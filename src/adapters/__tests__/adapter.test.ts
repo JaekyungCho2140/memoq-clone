@@ -119,18 +119,14 @@ describe("web adapter — file registry (registerFile)", () => {
 // ─── web adapter: openFileDialog ─────────────────────────────────────────────
 
 describe("web adapter — openFileDialog", () => {
-  let appendSpy: ReturnType<typeof vi.spyOn>;
-  let removeSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.resetModules();
-    appendSpy = vi.spyOn(document.body, "appendChild");
-    removeSpy = vi.spyOn(document.body, "removeChild").mockImplementation(() => null as unknown as Node);
+    vi.spyOn(document.body, "appendChild").mockImplementation((n) => n);
+    vi.spyOn(document.body, "removeChild").mockImplementation((n) => n);
   });
 
   afterEach(() => {
-    appendSpy.mockRestore();
-    removeSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it("returns null when the user cancels (cancel event)", async () => {

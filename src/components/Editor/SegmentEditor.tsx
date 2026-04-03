@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useProjectStore } from "../../stores/projectStore";
 import { useMtStore } from "../../stores/mtStore";
+import { useWsStore } from "../../stores/wsStore";
+import { useAuthStore } from "../../stores/authStore";
+import { useSegmentWs } from "../../hooks/useSegmentWs";
 import { adapter } from "../../adapters";
 import type { SegmentStatus } from "../../types";
 
@@ -15,17 +18,44 @@ export function SegmentEditor() {
   const { project, currentSegmentIndex, updateSegment, setCurrentSegmentIndex } =
     useProjectStore();
   const { provider, apiKey, cacheResult, getCached } = useMtStore();
+  const { locks } = useWsStore();
+  const { user } = useAuthStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mtLoading, setMtLoading] = useState(false);
   const [mtError, setMtError] = useState<string | null>(null);
 
-  const segment = project?.segments[currentSegmentIndex];
+  const { lockSegment, unlockSegment, updateSegment: wsUpdateSegment } = useSegmentWs(
+    project?.id ?? null,
+  );
 
-  // 세그먼트가 바뀔 때마다 textarea에 포커스
+  const segment = project?.segments[currentSegmentIndex];
+  const prevSegmentId = useRef<string | undefined>(undefined);
+
+  // Focus textarea and manage WS locks when segment changes
   useEffect(() => {
+    const prevId = prevSegmentId.current;
+    const nextId = segment?.id;
+
+    if (prevId && prevId !== nextId) {
+      unlockSegment(prevId);
+    }
+    if (nextId) {
+      lockSegment(nextId);
+      prevSegmentId.current = nextId;
+    }
+
     textareaRef.current?.focus();
     setMtError(null);
   }, [segment?.id]);
+
+  // Unlock on unmount
+  useEffect(() => {
+    return () => {
+      if (prevSegmentId.current) {
+        unlockSegment(prevSegmentId.current);
+      }
+    };
+  }, []);
 
   // Ctrl+M global handler (fires even when textarea doesn't have focus)
   useEffect(() => {
@@ -42,6 +72,9 @@ export function SegmentEditor() {
   if (!project) return null;
   if (!segment) return <div className="empty-editor">세그먼트를 선택하세요</div>;
 
+  const lockInfo = locks[segment.id];
+  const isLockedByOther = lockInfo && lockInfo.userId !== (user?.id ?? "");
+
   const goToNext = () => {
     const next = currentSegmentIndex + 1;
     if (next < project.segments.length) {
@@ -50,19 +83,24 @@ export function SegmentEditor() {
   };
 
   const handleTargetChange = async (value: string) => {
+    if (isLockedByOther) return;
     const status: SegmentStatus = value.trim() ? "draft" : "untranslated";
     updateSegment(segment.id, { target: value, status });
+    // Broadcast to other users via WS
+    wsUpdateSegment(segment.id, value, status);
     await adapter.saveSegment(project.id, segment.id, segment.source, value, status, segment.order);
   };
 
   const handleConfirm = async () => {
+    if (isLockedByOther) return;
     updateSegment(segment.id, { status: "confirmed" });
+    wsUpdateSegment(segment.id, segment.target, "confirmed");
     await adapter.saveSegment(project.id, segment.id, segment.source, segment.target, "confirmed", segment.order);
     goToNext();
   };
 
   const handleMt = async () => {
-    if (!segment || mtLoading) return;
+    if (!segment || mtLoading || isLockedByOther) return;
     setMtError(null);
 
     // Use cached result if available
@@ -102,6 +140,7 @@ export function SegmentEditor() {
 
   const applyMtResult = async (target: string) => {
     updateSegment(segment.id, { target, status: "draft" });
+    wsUpdateSegment(segment.id, target, "draft");
     await adapter.saveSegment(project.id, segment.id, segment.source, target, "draft", segment.order);
     textareaRef.current?.focus();
   };
@@ -121,6 +160,11 @@ export function SegmentEditor() {
 
   return (
     <div className="segment-editor">
+      {isLockedByOther && (
+        <div className="segment-lock-banner" role="status">
+          🔒 {lockInfo.username}님이 편집 중입니다
+        </div>
+      )}
       <div className="source-cell">{segment.source}</div>
       <div className="target-cell">
         <textarea
@@ -130,16 +174,18 @@ export function SegmentEditor() {
           onKeyDown={handleKeyDown}
           placeholder="번역 입력..."
           rows={6}
+          disabled={isLockedByOther}
+          aria-label={isLockedByOther ? `${lockInfo.username}님이 편집 중` : "번역 입력"}
         />
       </div>
       <div className="editor-actions">
-        <button onClick={handleConfirm} disabled={segment.status === "confirmed"}>
+        <button onClick={handleConfirm} disabled={segment.status === "confirmed" || isLockedByOther}>
           확정 (Ctrl+Enter)
         </button>
         <button
           className="btn-mt"
           onClick={handleMt}
-          disabled={mtLoading}
+          disabled={mtLoading || isLockedByOther}
           title="MT 번역 삽입 (Ctrl+M)"
         >
           {mtLoading ? <span className="mt-spinner" /> : "MT (Ctrl+M)"}

@@ -22,6 +22,7 @@ async fn build_test_server() -> TestServer {
         jwt_secret: "test-secret-key-for-tests-only".to_string(),
         jwt_access_expiry_secs: 1800,
         jwt_refresh_expiry_secs: 604800,
+        ws_lock_timeout_secs: 0,
     };
 
     let router = server::app::build_router(pool, config);

@@ -109,9 +109,17 @@ function apiBase(): string {
   return ((window as unknown) as Record<string, unknown>).__WEB_API_BASE__ as string ?? "";
 }
 
+/** Return the current access token from localStorage (if present). */
+function getAccessToken(): string | null {
+  return localStorage.getItem("mq_access_token");
+}
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = getAccessToken();
+  const baseHeaders: Record<string, string> = { Accept: "application/json" };
+  if (token) baseHeaders["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${apiBase()}${path}`, {
-    headers: { Accept: "application/json", ...init?.headers },
+    headers: { ...baseHeaders, ...(init?.headers as Record<string, string> | undefined) },
     ...init,
   });
   if (!res.ok) {
@@ -119,6 +127,13 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
     throw new Error(`[web adapter] ${init?.method ?? "GET"} ${path} → ${res.status}: ${text}`);
   }
   return res;
+}
+
+/** Build the WebSocket URL for a project (includes auth token as query param). */
+export function projectWsUrl(projectId: string): string {
+  const base = apiBase().replace(/^http/, "ws");
+  const token = getAccessToken() ?? "";
+  return `${base}/api/projects/${projectId}/ws?token=${encodeURIComponent(token)}`;
 }
 
 async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {

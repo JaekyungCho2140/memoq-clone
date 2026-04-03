@@ -8,6 +8,9 @@ pub struct Config {
     pub jwt_secret: String,
     pub jwt_access_expiry_secs: i64,
     pub jwt_refresh_expiry_secs: i64,
+    /// Seconds to hold a segment lock after the holder disconnects (grace period).
+    /// Default 30s for production; tests can use 0.
+    pub ws_lock_timeout_secs: u64,
 }
 
 impl Config {
@@ -23,6 +26,7 @@ impl Config {
                 .unwrap_or_else(|_| "change-me-in-production-secret-key".to_string()),
             jwt_access_expiry_secs: 30 * 60,       // 30 minutes
             jwt_refresh_expiry_secs: 7 * 24 * 3600, // 7 days
+            ws_lock_timeout_secs: 30,
         })
     }
 }

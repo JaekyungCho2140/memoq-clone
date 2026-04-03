@@ -12,7 +12,7 @@
  */
 
 import { tauriAdapter } from "./tauri";
-import { webAdapter, registerFile as webRegisterFile } from "./web";
+import { webAdapter, registerFile as webRegisterFile, projectWsUrl as webProjectWsUrl } from "./web";
 import type { IAppAdapter, FileRef } from "./types";
 
 export type { IAppAdapter, OpenFileDialogOptions, SaveFileDialogOptions, FileRef } from "./types";
@@ -37,4 +37,13 @@ export function fileRefFromDrop(file: File): FileRef {
     return path ?? file.name;
   }
   return webRegisterFile(file);
+}
+
+/**
+ * Build the WebSocket URL for real-time collaboration.
+ * Only meaningful in web mode; returns "" in Tauri mode.
+ */
+export function projectWsUrl(projectId: string): string {
+  if (isTauri()) return "";
+  return webProjectWsUrl(projectId);
 }

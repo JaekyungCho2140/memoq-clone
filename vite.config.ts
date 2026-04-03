@@ -27,6 +27,7 @@ export default defineConfig(async () => ({
         "src/stores/**/*.ts",
         "src/tauri/**/*.ts",
         "src/adapters/**/*.ts",
+        "src/hooks/**/*.ts",
         "src/components/TmPanel/**/*.tsx",
         "src/components/TbPanel/**/*.tsx",
       ],
