@@ -1,0 +1,41 @@
+[package]
+name = "memoq-clone"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "memoq_clone_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "memoq-clone"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = [] }
+tauri-plugin-dialog = "2.0"
+tauri-plugin-fs = "2.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+quick-xml = { version = "0.36", features = ["serialize"] }
+strsim = "0.11"
+dirs = "5"
+thiserror = "1"
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+tempfile = "3"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 0
