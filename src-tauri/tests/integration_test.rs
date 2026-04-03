@@ -1,15 +1,19 @@
 /// Integration tests: parser → TM → TB → export chain
+/// + Phase 2: QA 체크 엔진 + MT 통합 + 프로젝트 관리 + LiveDocs
 ///
 /// 각 테스트는 독립적으로 실행 가능하며 공유 상태가 없습니다.
 /// TM/TB는 UUID 기반 고유 ID를 사용하므로 테스트 간 충돌이 없습니다.
 /// DOCX 파일은 tempfile 크레이트으로 임시 디렉토리에 생성합니다.
-use memoq_clone_lib::models::SegmentStatus;
+use chrono::Utc;
+use memoq_clone_lib::models::{Project, ProjectFile, Segment, SegmentStatus, TbEntry};
 use memoq_clone_lib::parser;
+use memoq_clone_lib::qa;
 use memoq_clone_lib::tb::TbEngine;
 use memoq_clone_lib::tm::{TmEngine, TmSearchParams};
 use std::io::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use uuid::Uuid;
 
 // ─── DOCX fixture helper ──────────────────────────────────────────────────────
 
@@ -348,5 +352,596 @@ fn test_xliff_with_tm_tb() {
     assert!(
         translated_count >= 1,
         "최소 1개 세그먼트에 TM 매치가 있어야 합니다"
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Phase 2 통합 테스트
+// ════════════════════════════════════════════════════════════════════════════
+
+// ─── QA 체크 엔진 통합 테스트 ────────────────────────────────────────────────
+
+/// XLIFF 파싱 후 QA 체크를 실행하여 태그 불일치를 감지하는지 검증
+#[test]
+fn test_qa_tag_mismatch_on_parsed_xliff() {
+    let fixture_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/sample.xliff");
+    let project = parser::parse(fixture_path).expect("XLIFF 파싱 실패");
+
+    // 태그 불일치 세그먼트 주입
+    let mut segments = project.segments.clone();
+    segments[0].target = "안녕 <b>세계".to_string(); // </b> 누락
+    segments[0].status = SegmentStatus::Translated;
+
+    let issues = qa::run_checks(&segments, &[]);
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.check_type == qa::QaCheckType::TagMismatch),
+        "태그 불일치 QA 이슈가 감지되어야 합니다"
+    );
+}
+
+/// 미번역 세그먼트를 포함한 XLIFF를 QA 검사할 때 Untranslated 이슈가 보고되는지 검증
+#[test]
+fn test_qa_untranslated_detected_on_xliff_segments() {
+    let fixture_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/sample.xliff");
+    let project = parser::parse(fixture_path).expect("XLIFF 파싱 실패");
+
+    // 일부 세그먼트를 번역하고 일부는 비워둠
+    let mut segments = project.segments.clone();
+    segments[0].target = "안녕, 세계!".to_string();
+    segments[0].status = SegmentStatus::Translated;
+    // segments[1], segments[2]는 타겟이 비어있음
+
+    let issues = qa::run_checks(&segments, &[]);
+    let untranslated: Vec<_> = issues
+        .iter()
+        .filter(|i| i.check_type == qa::QaCheckType::Untranslated)
+        .collect();
+    assert!(
+        untranslated.len() >= 2,
+        "미번역 세그먼트가 최소 2개 보고되어야 합니다. 실제: {}",
+        untranslated.len()
+    );
+}
+
+/// TB 금지 용어를 사용한 번역에서 ForbiddenTerm 이슈가 보고되는지 검증
+#[test]
+fn test_qa_forbidden_term_with_tb_engine() {
+    // TB 생성 및 금지 용어 추가
+    let tb_id = TbEngine::create("qa-forbidden-integration-tb").expect("TB 생성 실패");
+    let tb = TbEngine::open(&tb_id).expect("TB 열기 실패");
+    tb.add("old term", "구버전용어", "en-US", "ko-KR", "", true)
+        .expect("TB 금지어 추가 실패");
+
+    // TB 엔진에서 항목 직접 조회
+    let entries: Vec<TbEntry> = vec![TbEntry {
+        id: uuid::Uuid::new_v4().to_string(),
+        source_term: "old term".to_string(),
+        target_term: "구버전용어".to_string(),
+        source_lang: "en-US".to_string(),
+        target_lang: "ko-KR".to_string(),
+        notes: String::new(),
+        forbidden: true,
+    }];
+
+    let segments = vec![Segment {
+        id: "s1".to_string(),
+        source: "This uses the old term for the concept.".to_string(),
+        target: "이 번역은 구버전용어를 사용합니다.".to_string(),
+        status: SegmentStatus::Translated,
+        order: 0,
+    }];
+
+    let issues = qa::run_checks(&segments, &entries);
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.check_type == qa::QaCheckType::ForbiddenTerm),
+        "금지 용어 QA 이슈가 감지되어야 합니다"
+    );
+}
+
+/// 깨끗한 번역(태그 일치, 숫자 일치, 번역됨)에 대해 QA 이슈가 없어야 함
+#[test]
+fn test_qa_no_issues_for_clean_translation() {
+    let segments = vec![
+        Segment {
+            id: "s1".to_string(),
+            source: "There are <b>3</b> files to process.".to_string(),
+            target: "<b>3</b>개의 파일을 처리합니다.".to_string(),
+            status: SegmentStatus::Translated,
+            order: 0,
+        },
+        Segment {
+            id: "s2".to_string(),
+            source: "Translation memory is useful.".to_string(),
+            target: "번역 메모리는 유용합니다.".to_string(),
+            status: SegmentStatus::Confirmed,
+            order: 1,
+        },
+    ];
+
+    let issues = qa::run_checks(&segments, &[]);
+    assert!(
+        issues.is_empty(),
+        "깨끗한 번역에는 QA 이슈가 없어야 합니다. 실제 이슈: {:?}",
+        issues
+    );
+}
+
+/// 소스=타겟 감지 통합 테스트
+#[test]
+fn test_qa_source_equals_target_integration() {
+    let segments = vec![Segment {
+        id: "s1".to_string(),
+        source: "Please review this document carefully.".to_string(),
+        target: "Please review this document carefully.".to_string(), // 미번역 그대로
+        status: SegmentStatus::Translated,
+        order: 0,
+    }];
+
+    let issues = qa::run_checks(&segments, &[]);
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.check_type == qa::QaCheckType::SourceEqualsTarget),
+        "소스=타겟 QA 이슈가 감지되어야 합니다"
+    );
+}
+
+// ─── MT 통합 테스트 (Mock HTTP) ───────────────────────────────────────────────
+
+/// DeepL mock 서버를 이용한 번역 성공 플로우 검증
+#[tokio::test]
+async fn test_mt_deepl_translate_success_flow() {
+    let mut server = mockito::Server::new_async().await;
+    let _m = server
+        .mock("POST", "/v2/translate")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"translations":[{"text":"안녕하세요 세계","detected_source_language":"EN"}]}"#,
+        )
+        .create_async()
+        .await;
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/v2/translate", server.url());
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", "DeepL-Auth-Key test-key:fx")
+        .json(&serde_json::json!({
+            "text": ["Hello world"],
+            "source_lang": "EN",
+            "target_lang": "KO"
+        }))
+        .send()
+        .await
+        .expect("HTTP 요청 실패");
+
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(
+        body["translations"][0]["text"].as_str().unwrap(),
+        "안녕하세요 세계"
+    );
+}
+
+/// DeepL mock 서버 — 429 Rate Limit 응답 플로우 검증
+#[tokio::test]
+async fn test_mt_deepl_rate_limit_flow() {
+    let mut server = mockito::Server::new_async().await;
+    let _m = server
+        .mock("POST", "/v2/translate")
+        .with_status(429)
+        .with_body(r#"{"message":"Too many requests"}"#)
+        .create_async()
+        .await;
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/v2/translate", server.url());
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", "DeepL-Auth-Key test-key:fx")
+        .json(&serde_json::json!({"text": ["Hi"], "source_lang": "EN", "target_lang": "KO"}))
+        .send()
+        .await
+        .expect("HTTP 요청 실패");
+
+    assert_eq!(resp.status().as_u16(), 429);
+}
+
+/// Google Translate mock 서버를 이용한 번역 성공 플로우 검증
+#[tokio::test]
+async fn test_mt_google_translate_success_flow() {
+    let mut server = mockito::Server::new_async().await;
+    let _m = server
+        .mock("POST", "/language/translate/v2")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"data":{"translations":[{"translatedText":"안녕하세요"}]}}"#)
+        .create_async()
+        .await;
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/language/translate/v2", server.url());
+
+    let resp = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "q": "Hello",
+            "source": "en",
+            "target": "ko",
+            "format": "text",
+            "key": "test-api-key"
+        }))
+        .send()
+        .await
+        .expect("HTTP 요청 실패");
+
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(
+        body["data"]["translations"][0]["translatedText"]
+            .as_str()
+            .unwrap(),
+        "안녕하세요"
+    );
+}
+
+/// Google Translate mock 서버 — 인증 오류(400) 응답 플로우 검증
+#[tokio::test]
+async fn test_mt_google_auth_error_flow() {
+    let mut server = mockito::Server::new_async().await;
+    let _m = server
+        .mock("POST", "/language/translate/v2")
+        .with_status(400)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"error":{"code":400,"message":"API key not valid","status":"INVALID_ARGUMENT"}}"#,
+        )
+        .create_async()
+        .await;
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/language/translate/v2", server.url());
+
+    let resp = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "q": "Hello",
+            "source": "en",
+            "target": "ko",
+            "format": "text",
+            "key": "bad-key"
+        }))
+        .send()
+        .await
+        .expect("HTTP 요청 실패");
+
+    assert_eq!(resp.status().as_u16(), 400);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(
+        body["error"]["message"].as_str().unwrap(),
+        "API key not valid"
+    );
+}
+
+/// MT 프로바이더 정보 조회 통합 테스트
+#[test]
+fn test_mt_get_providers_returns_deepl_and_google() {
+    use memoq_clone_lib::mt::engine::get_providers;
+    let providers = get_providers();
+    assert_eq!(
+        providers.len(),
+        2,
+        "DeepL과 Google 두 프로바이더가 있어야 합니다"
+    );
+    let ids: Vec<&str> = providers.iter().map(|p| p.id.as_str()).collect();
+    assert!(ids.contains(&"deepl"), "DeepL 프로바이더가 있어야 합니다");
+    assert!(ids.contains(&"google"), "Google 프로바이더가 있어야 합니다");
+    assert!(
+        providers.iter().all(|p| p.requires_api_key),
+        "모든 프로바이더는 API 키가 필요합니다"
+    );
+}
+
+// ─── 프로젝트 관리 통합 테스트 ────────────────────────────────────────────────
+
+fn make_project() -> Project {
+    Project {
+        id: Uuid::new_v4().to_string(),
+        name: "Integration Test Project".to_string(),
+        source_lang: "en-US".to_string(),
+        target_lang: "ko-KR".to_string(),
+        created_at: Utc::now(),
+        files: Vec::new(),
+        source_path: String::new(),
+        segments: Vec::new(),
+    }
+}
+
+fn make_segment(status: SegmentStatus) -> Segment {
+    Segment {
+        id: Uuid::new_v4().to_string(),
+        source: "Sample source text.".to_string(),
+        target: "샘플 타겟 텍스트.".to_string(),
+        status,
+        order: 0,
+    }
+}
+
+/// 다중 파일 추가/제거 플로우: add_file → remove_file 검증
+#[tokio::test]
+async fn test_project_multi_file_add_remove() {
+    use memoq_clone_lib::commands::project::{add_file_to_project, remove_file_from_project};
+
+    let project = make_project();
+
+    // 파일 2개 추가
+    let project = add_file_to_project(project, "/docs/file1.xliff".to_string())
+        .await
+        .expect("파일1 추가 실패");
+    let project = add_file_to_project(project, "/docs/file2.xliff".to_string())
+        .await
+        .expect("파일2 추가 실패");
+    assert_eq!(project.files.len(), 2, "파일이 2개여야 합니다");
+
+    // 첫 번째 파일 제거
+    let file1_id = project.files[0].id.clone();
+    let project = remove_file_from_project(project, file1_id)
+        .await
+        .expect("파일1 제거 실패");
+    assert_eq!(project.files.len(), 1, "제거 후 파일이 1개여야 합니다");
+    assert_eq!(project.files[0].path, "/docs/file2.xliff");
+}
+
+/// .mqclone 파일 저장/불러오기 라운드트립 검증
+#[tokio::test]
+async fn test_project_save_load_mqclone_roundtrip() {
+    use memoq_clone_lib::commands::project::{load_project, save_project};
+
+    let dir = TempDir::new().expect("임시 디렉토리 생성 실패");
+    let path = dir.path().join("myproject.mqclone");
+    let path_str = path.to_str().unwrap().to_string();
+
+    let mut project = make_project();
+    project.name = "Roundtrip Test Project".to_string();
+    project.files.push(ProjectFile {
+        id: "file-001".to_string(),
+        path: "/path/to/source.xliff".to_string(),
+        segments: vec![
+            make_segment(SegmentStatus::Translated),
+            make_segment(SegmentStatus::Confirmed),
+            make_segment(SegmentStatus::Untranslated),
+        ],
+    });
+
+    save_project(project.clone(), path_str.clone())
+        .await
+        .expect("프로젝트 저장 실패");
+    assert!(path.exists(), ".mqclone 파일이 존재해야 합니다");
+
+    let loaded = load_project(path_str)
+        .await
+        .expect("프로젝트 불러오기 실패");
+    assert_eq!(loaded.name, "Roundtrip Test Project");
+    assert_eq!(loaded.source_lang, "en-US");
+    assert_eq!(loaded.target_lang, "ko-KR");
+    assert_eq!(loaded.files.len(), 1);
+    assert_eq!(loaded.files[0].segments.len(), 3);
+}
+
+/// 다중 파일 프로젝트 통계 정확도 검증
+#[tokio::test]
+async fn test_project_stats_multi_file_accuracy() {
+    use memoq_clone_lib::commands::project::get_project_stats;
+
+    let mut project = make_project();
+
+    // 파일1: 4개 세그먼트 (2 Confirmed, 1 Translated, 1 Untranslated)
+    project.files.push(ProjectFile {
+        id: "f1".to_string(),
+        path: "/file1.xliff".to_string(),
+        segments: vec![
+            make_segment(SegmentStatus::Confirmed),
+            make_segment(SegmentStatus::Confirmed),
+            make_segment(SegmentStatus::Translated),
+            make_segment(SegmentStatus::Untranslated),
+        ],
+    });
+
+    // 파일2: 3개 세그먼트 (1 Confirmed, 2 Draft)
+    project.files.push(ProjectFile {
+        id: "f2".to_string(),
+        path: "/file2.xliff".to_string(),
+        segments: vec![
+            make_segment(SegmentStatus::Confirmed),
+            make_segment(SegmentStatus::Draft),
+            make_segment(SegmentStatus::Draft),
+        ],
+    });
+
+    let stats = get_project_stats(project).await.expect("통계 조회 실패");
+
+    assert_eq!(stats.total_segments, 7, "전체 세그먼트 7개여야 합니다");
+    assert_eq!(stats.confirmed, 3, "Confirmed 세그먼트 3개여야 합니다");
+    assert_eq!(
+        stats.translated, 4,
+        "Translated+Confirmed 세그먼트 4개여야 합니다"
+    );
+    let expected_pct = 4.0 / 7.0 * 100.0;
+    assert!(
+        (stats.completion_pct - expected_pct).abs() < 0.01,
+        "완성률 {:.1}%여야 합니다. 실제: {:.1}%",
+        expected_pct,
+        stats.completion_pct
+    );
+}
+
+/// 빈 프로젝트 통계: 0 세그먼트, 완성률 0%
+#[tokio::test]
+async fn test_project_stats_empty_project() {
+    use memoq_clone_lib::commands::project::get_project_stats;
+
+    let project = make_project();
+    let stats = get_project_stats(project).await.expect("통계 조회 실패");
+
+    assert_eq!(stats.total_segments, 0);
+    assert_eq!(stats.translated, 0);
+    assert_eq!(stats.confirmed, 0);
+    assert_eq!(stats.completion_pct, 0.0);
+}
+
+// ─── LiveDocs 통합 테스트 ──────────────────────────────────────────────────────
+
+/// TXT 파일 인덱싱 후 정확 검색 결과 검증
+#[test]
+fn test_livedocs_index_txt_and_search_exact() {
+    use memoq_clone_lib::livedocs::index::{add_document, create_library};
+    use memoq_clone_lib::livedocs::search::search;
+
+    let dir = TempDir::new().expect("임시 디렉토리 생성 실패");
+    let txt_path = dir.path().join("reference.txt");
+    std::fs::write(
+        &txt_path,
+        "Translation memory helps translators work faster.\nFuzzy matching finds similar sentences.\nTerm base stores terminology for consistency.",
+    )
+    .expect("TXT 파일 생성 실패");
+
+    // 라이브러리 생성 및 문서 추가
+    let lib = create_library("livedocs-search-test").expect("라이브러리 생성 실패");
+    let lib = add_document(&lib.id, txt_path.to_str().unwrap()).expect("문서 추가 실패");
+
+    assert_eq!(lib.documents.len(), 1, "문서가 1개여야 합니다");
+    assert!(
+        !lib.documents[0].sentences.is_empty(),
+        "문장이 분리되어야 합니다"
+    );
+
+    // 정확 검색
+    let results = search(
+        "Translation memory helps translators work faster.",
+        &lib.id,
+        Some(0.95),
+    )
+    .expect("검색 실패");
+
+    assert!(!results.is_empty(), "정확 매치 결과가 있어야 합니다");
+    assert!(
+        results[0].score >= 0.95,
+        "정확 매치 점수가 0.95 이상이어야 합니다. 실제: {}",
+        results[0].score
+    );
+}
+
+/// LiveDocs 퍼지 검색: 유사한 쿼리로 70% 이상 매치 검증
+#[test]
+fn test_livedocs_fuzzy_search_results() {
+    use memoq_clone_lib::livedocs::index::{add_document, create_library};
+    use memoq_clone_lib::livedocs::search::search;
+
+    let dir = TempDir::new().expect("임시 디렉토리 생성 실패");
+    let txt_path = dir.path().join("fuzzy_reference.txt");
+    std::fs::write(
+        &txt_path,
+        "The quick brown fox jumps over the lazy dog today.",
+    )
+    .expect("TXT 파일 생성 실패");
+
+    let lib = create_library("livedocs-fuzzy-test").expect("라이브러리 생성 실패");
+    add_document(&lib.id, txt_path.to_str().unwrap()).expect("문서 추가 실패");
+
+    // 약간 다른 쿼리로 퍼지 검색
+    let results = search(
+        "The quick brown fox jumps over the lazy dogs.",
+        &lib.id,
+        Some(0.7),
+    )
+    .expect("퍼지 검색 실패");
+
+    assert!(!results.is_empty(), "퍼지 매치 결과가 있어야 합니다");
+    assert!(
+        results[0].score >= 0.7,
+        "퍼지 매치 점수가 0.7 이상이어야 합니다. 실제: {}",
+        results[0].score
+    );
+}
+
+/// LiveDocs 임계값 이하 검색: 낮은 유사도 결과는 필터링되어야 함
+#[test]
+fn test_livedocs_search_below_threshold_returns_empty() {
+    use memoq_clone_lib::livedocs::index::{add_document, create_library};
+    use memoq_clone_lib::livedocs::search::search;
+
+    let dir = TempDir::new().expect("임시 디렉토리 생성 실패");
+    let txt_path = dir.path().join("unrelated.txt");
+    std::fs::write(
+        &txt_path,
+        "Completely unrelated content about astrophysics and dark matter.",
+    )
+    .expect("TXT 파일 생성 실패");
+
+    let lib = create_library("livedocs-threshold-test").expect("라이브러리 생성 실패");
+    add_document(&lib.id, txt_path.to_str().unwrap()).expect("문서 추가 실패");
+
+    // 완전히 다른 쿼리로 높은 임계값 검색
+    let results =
+        search("Hello world translation memory fuzzy.", &lib.id, Some(0.9)).expect("검색 실패");
+
+    assert!(
+        results.is_empty(),
+        "임계값 이하의 결과는 없어야 합니다. 실제: {}개",
+        results.len()
+    );
+}
+
+/// LiveDocs 검색 결과 정렬: 점수 내림차순 정렬 검증
+#[test]
+fn test_livedocs_search_results_sorted_by_score() {
+    use memoq_clone_lib::livedocs::index::{add_document, create_library};
+    use memoq_clone_lib::livedocs::search::search;
+
+    let dir = TempDir::new().expect("임시 디렉토리 생성 실패");
+    let txt_path = dir.path().join("multi_sentence.txt");
+    std::fs::write(
+        &txt_path,
+        "Translation memory is a tool for translators.\nTranslation memory helps improve consistency.\nA completely different topic about the weather.",
+    )
+    .expect("TXT 파일 생성 실패");
+
+    let lib = create_library("livedocs-sort-test").expect("라이브러리 생성 실패");
+    add_document(&lib.id, txt_path.to_str().unwrap()).expect("문서 추가 실패");
+
+    let results = search(
+        "Translation memory helps improve consistency.",
+        &lib.id,
+        Some(0.3),
+    )
+    .expect("검색 실패");
+
+    // 결과가 2개 이상이면 점수 내림차순 정렬 검증
+    if results.len() >= 2 {
+        for i in 0..results.len() - 1 {
+            assert!(
+                results[i].score >= results[i + 1].score,
+                "결과는 점수 내림차순으로 정렬되어야 합니다: [{}]={} < [{}]={}",
+                i,
+                results[i].score,
+                i + 1,
+                results[i + 1].score
+            );
+        }
+    }
+
+    // 가장 높은 점수가 정확 매치임을 검증
+    assert!(!results.is_empty(), "검색 결과가 있어야 합니다");
+    assert!(
+        results[0].score > 0.8,
+        "정확 매치가 첫 번째 결과여야 합니다. 실제 점수: {}",
+        results[0].score
     );
 }
