@@ -1,8 +1,21 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::{ConnectInfo, State},
+    Json,
+};
 use chrono::Utc;
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use uuid::Uuid;
+
+/// Extract caller IP for rate-limiting; falls back to loopback when
+/// `ConnectInfo` is unavailable (e.g., in-process tests).
+fn caller_ip(connect_info: &Option<ConnectInfo<SocketAddr>>) -> String {
+    connect_info
+        .as_ref()
+        .map(|ci| ci.0.ip().to_string())
+        .unwrap_or_else(|| "127.0.0.1".to_string())
+}
 
 use crate::{
     app::AppState,
@@ -10,7 +23,7 @@ use crate::{
         jwt::{decode_token, encode_token, TokenKind},
         middleware::AuthUser,
     },
-    db::{run_db, DbPool},
+    db::run_db,
     error::{AppError, AppResult},
     models::user::{User, UserProfile},
 };
@@ -48,8 +61,15 @@ pub struct RegisterRequest {
 /// POST /api/auth/register
 pub async fn register(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
     Json(body): Json<RegisterRequest>,
 ) -> AppResult<Json<UserProfile>> {
+    let ip = caller_ip(&connect_info);
+    state
+        .auth_limiter
+        .check_key(&ip)
+        .map_err(|_| AppError::TooManyRequests)?;
+
     if body.username.trim().is_empty() || body.password.len() < 8 {
         return Err(AppError::BadRequest(
             "Username required and password must be at least 8 characters".to_string(),
@@ -92,8 +112,15 @@ pub async fn register(
 /// POST /api/auth/login
 pub async fn login(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<SocketAddr>>,
     Json(body): Json<LoginRequest>,
 ) -> AppResult<Json<TokenResponse>> {
+    let ip = caller_ip(&connect_info);
+    state
+        .auth_limiter
+        .check_key(&ip)
+        .map_err(|_| AppError::TooManyRequests)?;
+
     let username = body.username.clone();
     let pool = state.pool.clone();
 

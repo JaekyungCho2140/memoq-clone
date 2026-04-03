@@ -33,6 +33,8 @@ async fn start_server() -> (String, String, String) {
         jwt_access_expiry_secs: 1800,
         jwt_refresh_expiry_secs: 604800,
         ws_lock_timeout_secs: 1, // 1-second timeout for fast tests
+        allowed_origins: vec![],
+        auth_rate_limit_per_min: 1000,
     };
 
     let router = server::app::build_router(pool, config);

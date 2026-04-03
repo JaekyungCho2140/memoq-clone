@@ -25,7 +25,7 @@ export function TmAlignmentPage({ onClose }: TmAlignmentPageProps) {
       </div>
 
       <div className="alignment-phase-indicator">
-        <span className={phase === "upload" ? "active" : phase !== "upload" ? "done" : ""}>
+        <span className={phase === "upload" ? "active" : "done"}>
           1. 파일 업로드
         </span>
         <span className="phase-sep">›</span>

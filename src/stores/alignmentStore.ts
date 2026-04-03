@@ -14,7 +14,7 @@ interface AlignmentState {
   setPhase: (phase: AlignmentPhase) => void;
   setConfig: (sourceLang: string, targetLang: string, tmId: string) => void;
   setPairs: (pairs: AlignedPair[]) => void;
-  setProgress: (progress: number) => void;
+  setProgress: (progress: number | ((prev: number) => number)) => void;
   setError: (error: string | null) => void;
   confirmPair: (id: string) => void;
   unconfirmPair: (id: string) => void;
@@ -44,7 +44,11 @@ export const useAlignmentStore = create<AlignmentState>((set) => ({
 
   setPairs: (pairs) => set({ pairs }),
 
-  setProgress: (progress) => set({ progress }),
+  setProgress: (progress) =>
+    set((state) => ({
+      progress:
+        typeof progress === "function" ? progress(state.progress) : progress,
+    })),
 
   setError: (error) => set({ error }),
 

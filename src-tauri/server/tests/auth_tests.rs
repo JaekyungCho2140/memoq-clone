@@ -23,6 +23,8 @@ async fn build_test_server() -> TestServer {
         jwt_access_expiry_secs: 1800,
         jwt_refresh_expiry_secs: 604800,
         ws_lock_timeout_secs: 0,
+        allowed_origins: vec![],
+        auth_rate_limit_per_min: 1000,
     };
 
     let router = server::app::build_router(pool, config);

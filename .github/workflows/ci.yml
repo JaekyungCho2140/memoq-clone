@@ -24,6 +24,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Security audit (npm audit)
+        run: npm audit --audit-level=high
 
   backend:
     name: Backend (Rust)
@@ -61,3 +63,7 @@ jobs:
           --target wasm32-wasip1
           --release
           -p example-mt-provider
+      - name: Security audit (cargo-audit)
+        run: |
+          cargo install cargo-audit --quiet
+          cargo audit --manifest-path src-tauri/Cargo.toml

@@ -14,7 +14,7 @@ path = "src/main.rs"
 [dependencies]
 axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "set-header"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -42,6 +42,9 @@ dotenvy = "0.15"
 # File parsing
 quick-xml = { version = "0.36", features = ["serialize"] }
 zip = "2"
+
+# Rate limiting
+governor = { version = "0.6", features = ["dashmap"] }
 
 [dev-dependencies]
 axum-test = "14"

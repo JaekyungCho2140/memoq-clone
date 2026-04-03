@@ -30,7 +30,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .btn-toolbar.btn-danger:hover { background: #a93226; }
 
 /* Segment List — memoQ 스타일 테이블 */
-.segment-list { display: flex; flex-direction: column; font-size: 12px; }
+.segment-list { display: flex; flex-direction: column; font-size: 12px; flex: 1; overflow: hidden; }
+/* Virtual scroll viewport — fills remaining space, enables scrolling */
+.segment-list-viewport { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .segment-list-header {
   display: grid;
   grid-template-columns: 28px 1fr 1fr 52px;

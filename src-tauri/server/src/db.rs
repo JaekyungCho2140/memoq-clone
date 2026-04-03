@@ -127,6 +127,19 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
 
         CREATE INDEX IF NOT EXISTS idx_tevents_project ON translation_events(project_id, timestamp);
         CREATE INDEX IF NOT EXISTS idx_tevents_user    ON translation_events(user_id, timestamp);
+
+        -- TM lookup: fast fuzzy / exact match by lang pair
+        CREATE INDEX IF NOT EXISTS idx_tm_lang ON tm_entries(source_lang, target_lang);
+        -- TM owner filter
+        CREATE INDEX IF NOT EXISTS idx_tm_owner ON tm_entries(owner_id, source_lang, target_lang);
+        -- TB lang pair
+        CREATE INDEX IF NOT EXISTS idx_tb_lang ON tb_entries(source_lang, target_lang);
+        -- Segments ordered list per file
+        CREATE INDEX IF NOT EXISTS idx_seg_file_order ON segments(file_id, seg_order);
+        -- Projects by owner
+        CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
+        -- Refresh tokens by user (for revocation)
+        CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id, revoked, expires_at);
         "#,
     )
 }
