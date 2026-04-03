@@ -60,9 +60,9 @@ describe("TmPanel", () => {
       expect(screen.getByText("매치 없음")).toBeInTheDocument();
     });
 
-    it("Translation Memory 헤더가 항상 표시된다", () => {
+    it("TM 탭이 항상 표시된다", () => {
       render(<TmPanel />);
-      expect(screen.getByText("Translation Memory")).toBeInTheDocument();
+      expect(screen.getByText("TM")).toBeInTheDocument();
     });
 
     it("project가 있지만 TM 매치가 없을 때 '매치 없음' 메시지를 표시한다", async () => {

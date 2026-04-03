@@ -18,6 +18,12 @@ export interface Segment {
   order: number;
 }
 
+export interface ProjectFile {
+  id: string;
+  path: string;
+  segments: Segment[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -26,6 +32,8 @@ export interface Project {
   sourceLang: string;
   targetLang: string;
   createdAt: string;
+  /** Multi-file support (default empty, matches Rust serde default) */
+  files?: ProjectFile[];
   segments: Segment[];
 }
 
@@ -63,6 +71,27 @@ export interface TbLookupParams {
   sourceLang: string;
 }
 
+export type MtProvider = "deepl" | "google";
+
+export interface MtSettings {
+  provider: MtProvider;
+  apiKey: string;
+}
+
+export interface MtResult {
+  source: string;
+  target: string;
+  provider: MtProvider;
+}
+
+export interface MtTranslateParams {
+  source: string;
+  sourceLang: string;
+  targetLang: string;
+  provider: MtProvider;
+  apiKey: string;
+}
+
 export type QaSeverity = "Error" | "Warning";
 
 export type QaCheckType =
@@ -78,3 +107,16 @@ export interface QaIssue {
   severity: QaSeverity;
   message: string;
 }
+
+// Feature 8 — Project Management Enhancement
+
+/** Stats for a single file or the entire project */
+export interface ProjectStats {
+  totalSegments: number;
+  translated: number;
+  confirmed: number;
+  completionPct: number; // 0–100
+}
+
+/** Recently opened projects — Rust returns Vec<String> (paths only) */
+export type RecentProjects = string[];
