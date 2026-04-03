@@ -5,21 +5,23 @@ import "@testing-library/jest-dom";
 import { TmPanel } from "../TmPanel";
 import { useProjectStore } from "../../../stores/projectStore";
 import { useTmStore } from "../../../stores/tmStore";
-import type { Project, TmMatch } from "../../../types";
+import type { Project, TmMatch, LiveDocsMatch } from "../../../types";
 
-// Tauri API 모킹
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-// Tauri 커맨드 래퍼 모킹
-vi.mock("../../../tauri/commands", () => ({
+// vi.mock은 호이스팅되므로 vi.hoisted()로 mockAdapter를 먼저 정의
+const mockAdapter = vi.hoisted(() => ({
   createTm: vi.fn().mockResolvedValue("tm-id-1"),
   searchTm: vi.fn().mockResolvedValue([]),
   addToTm: vi.fn().mockResolvedValue({}),
+  mtTranslate: vi.fn().mockResolvedValue({ source: "", target: "", provider: "deepl" }),
+  liveDocsSearch: vi.fn().mockResolvedValue([]),
+  liveDocsListLibraries: vi.fn().mockResolvedValue([]),
 }));
 
-import { createTm, searchTm, addToTm } from "../../../tauri/commands";
+vi.mock("../../../adapters", () => ({
+  adapter: mockAdapter,
+  isTauri: () => false,
+  fileRefFromDrop: (file: File) => `web-file://${file.name}`,
+}));
 
 const mockMatches: TmMatch[] = [
   { source: "Hello", target: "안녕하세요", score: 1.0, matchType: "exact" },
@@ -50,8 +52,8 @@ describe("TmPanel", () => {
     vi.clearAllMocks();
     useProjectStore.setState({ project: null, currentSegmentIndex: 0 });
     useTmStore.setState({ activeTmId: null });
-    vi.mocked(createTm).mockResolvedValue("tm-id-1");
-    vi.mocked(searchTm).mockResolvedValue([]);
+    mockAdapter.createTm.mockResolvedValue("tm-id-1");
+    mockAdapter.searchTm.mockResolvedValue([]);
   });
 
   describe("빈 상태 렌더링", () => {
@@ -67,7 +69,7 @@ describe("TmPanel", () => {
 
     it("project가 있지만 TM 매치가 없을 때 '매치 없음' 메시지를 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
-      vi.mocked(searchTm).mockResolvedValue([]);
+      mockAdapter.searchTm.mockResolvedValue([]);
 
       render(<TmPanel />);
 
@@ -81,7 +83,7 @@ describe("TmPanel", () => {
     it("TM 매치 목록을 점수, 소스, 타겟과 함께 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTmStore.setState({ activeTmId: "tm-id-1" });
-      vi.mocked(searchTm).mockResolvedValue(mockMatches);
+      mockAdapter.searchTm.mockResolvedValue(mockMatches);
 
       render(<TmPanel />);
 
@@ -101,7 +103,7 @@ describe("TmPanel", () => {
     it("매치가 있을 때 '매치 없음' 메시지를 표시하지 않는다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTmStore.setState({ activeTmId: "tm-id-1" });
-      vi.mocked(searchTm).mockResolvedValue(mockMatches);
+      mockAdapter.searchTm.mockResolvedValue(mockMatches);
 
       render(<TmPanel />);
 
@@ -115,7 +117,7 @@ describe("TmPanel", () => {
     it("매치 클릭 시 updateSegment가 해당 타겟으로 호출된다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTmStore.setState({ activeTmId: "tm-id-1" });
-      vi.mocked(searchTm).mockResolvedValue(mockMatches);
+      mockAdapter.searchTm.mockResolvedValue(mockMatches);
 
       render(<TmPanel />);
 
@@ -135,7 +137,7 @@ describe("TmPanel", () => {
     it("두 번째 매치 클릭 시 해당 타겟이 적용된다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTmStore.setState({ activeTmId: "tm-id-1" });
-      vi.mocked(searchTm).mockResolvedValue(mockMatches);
+      mockAdapter.searchTm.mockResolvedValue(mockMatches);
 
       render(<TmPanel />);
 
@@ -174,7 +176,7 @@ describe("TmPanel", () => {
 
     it("TM 이름 입력 후 만들기 클릭 시 createTm이 호출된다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
-      vi.mocked(createTm).mockResolvedValueOnce("new-tm-id");
+      mockAdapter.createTm.mockResolvedValueOnce("new-tm-id");
 
       render(<TmPanel />);
       fireEvent.click(screen.getByTitle("새 TM 만들기"));
@@ -184,7 +186,7 @@ describe("TmPanel", () => {
       fireEvent.click(screen.getByText("만들기"));
 
       await waitFor(() => {
-        expect(createTm).toHaveBeenCalledWith("My Test TM", "en-US", "ko-KR");
+        expect(mockAdapter.createTm).toHaveBeenCalledWith("My Test TM", "en-US", "ko-KR");
       });
     });
 
@@ -194,10 +196,110 @@ describe("TmPanel", () => {
       fireEvent.click(screen.getByTitle("새 TM 만들기"));
 
       // 빈 입력으로 만들기 클릭 (createTm은 handleCreateTm 내 조건에서 막힘)
-      const beforeCallCount = vi.mocked(createTm).mock.calls.length;
+      const beforeCallCount = mockAdapter.createTm.mock.calls.length;
       fireEvent.click(screen.getByText("만들기"));
       // 추가 호출이 없어야 함
-      expect(vi.mocked(createTm).mock.calls.length).toBe(beforeCallCount);
+      expect(mockAdapter.createTm.mock.calls.length).toBe(beforeCallCount);
+    });
+  });
+
+  describe("LiveDocs 탭", () => {
+    const mockLibraries = [
+      { id: "lib-1", name: "Reference Docs", documents: [] },
+      { id: "lib-2", name: "Tech Glossary", documents: [] },
+    ];
+
+    const mockLiveDocsMatches: LiveDocsMatch[] = [
+      { sentence: "Hello world", docPath: "/docs/greetings.txt", score: 0.95 },
+      { sentence: "Hello there", docPath: "/docs/phrases.txt", score: 0.80 },
+    ];
+
+    it("LiveDocs 탭 클릭 시 LiveDocs 버튼이 활성화된다", () => {
+      render(<TmPanel />);
+      const liveDocsBtn = screen.getByText("LiveDocs");
+      fireEvent.click(liveDocsBtn);
+      expect(liveDocsBtn).toHaveClass("active");
+    });
+
+    it("liveDocsListLibraries가 라이브러리 반환 시 각 라이브러리에 liveDocsSearch가 자동 호출된다", async () => {
+      useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
+      mockAdapter.liveDocsListLibraries.mockResolvedValue(mockLibraries);
+      mockAdapter.liveDocsSearch.mockResolvedValue([]);
+
+      render(<TmPanel />);
+      fireEvent.click(screen.getByText("LiveDocs"));
+
+      await waitFor(() => {
+        expect(mockAdapter.liveDocsListLibraries).toHaveBeenCalled();
+        expect(mockAdapter.liveDocsSearch).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.liveDocsSearch).toHaveBeenCalledWith("Hello", "lib-1", 0.5);
+        expect(mockAdapter.liveDocsSearch).toHaveBeenCalledWith("Hello", "lib-2", 0.5);
+      });
+    });
+
+    it("검색 결과 매치 항목이 문장·경로·점수%로 렌더링된다", async () => {
+      useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
+      mockAdapter.liveDocsListLibraries.mockResolvedValue(mockLibraries);
+      mockAdapter.liveDocsSearch.mockResolvedValueOnce(mockLiveDocsMatches).mockResolvedValue([]);
+
+      render(<TmPanel />);
+      fireEvent.click(screen.getByText("LiveDocs"));
+
+      await waitFor(() => {
+        expect(screen.getByText("95%")).toBeInTheDocument();
+        expect(screen.getByText("Hello world")).toBeInTheDocument();
+        expect(screen.getByText("/docs/greetings.txt")).toBeInTheDocument();
+      });
+    });
+
+    it("매치 클릭 시 세그먼트 target에 해당 sentence가 적용된다", async () => {
+      useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
+      mockAdapter.liveDocsListLibraries.mockResolvedValue([mockLibraries[0]]);
+      mockAdapter.liveDocsSearch.mockResolvedValue(mockLiveDocsMatches);
+
+      render(<TmPanel />);
+      fireEvent.click(screen.getByText("LiveDocs"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Hello world")).toBeInTheDocument();
+      });
+
+      const matchItems = document.querySelectorAll(".tm-match");
+      fireEvent.click(matchItems[0]);
+
+      const { project } = useProjectStore.getState();
+      expect(project!.segments[0].target).toBe("Hello world");
+      expect(project!.segments[0].status).toBe("draft");
+    });
+
+    it("검색 중에 '검색 중...' 로딩 상태가 표시된다", async () => {
+      useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
+      let resolveSearch: (value: LiveDocsMatch[]) => void;
+      mockAdapter.liveDocsListLibraries.mockResolvedValue([mockLibraries[0]]);
+      mockAdapter.liveDocsSearch.mockReturnValue(
+        new Promise<LiveDocsMatch[]>((resolve) => { resolveSearch = resolve; })
+      );
+
+      render(<TmPanel />);
+      fireEvent.click(screen.getByText("LiveDocs"));
+
+      await waitFor(() => {
+        expect(screen.getByText("검색 중...")).toBeInTheDocument();
+      });
+
+      resolveSearch!([]);
+    });
+
+    it("라이브러리가 없을 때 'LiveDocs 매치 없음' 메시지가 표시된다", async () => {
+      useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
+      mockAdapter.liveDocsListLibraries.mockResolvedValue([]);
+
+      render(<TmPanel />);
+      fireEvent.click(screen.getByText("LiveDocs"));
+
+      await waitFor(() => {
+        expect(screen.getByText("LiveDocs 매치 없음")).toBeInTheDocument();
+      });
     });
   });
 
@@ -225,7 +327,7 @@ describe("TmPanel", () => {
       };
       useProjectStore.setState({ project: projectWithTarget, currentSegmentIndex: 0 });
       useTmStore.setState({ activeTmId: "tm-id-1" });
-      vi.mocked(addToTm).mockResolvedValueOnce({
+      mockAdapter.addToTm.mockResolvedValueOnce({
         id: "entry-1",
         source: "Hello",
         target: "안녕하세요",
@@ -234,13 +336,13 @@ describe("TmPanel", () => {
         createdAt: "2026-01-01T00:00:00Z",
         metadata: {},
       });
-      vi.mocked(searchTm).mockResolvedValue([]);
+      mockAdapter.searchTm.mockResolvedValue([]);
 
       render(<TmPanel />);
       fireEvent.click(screen.getByTitle("현재 세그먼트를 TM에 추가"));
 
       await waitFor(() => {
-        expect(addToTm).toHaveBeenCalledWith(
+        expect(mockAdapter.addToTm).toHaveBeenCalledWith(
           "tm-id-1",
           "Hello",
           "안녕하세요",

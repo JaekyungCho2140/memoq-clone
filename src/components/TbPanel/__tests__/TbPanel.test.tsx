@@ -7,13 +7,8 @@ import { useProjectStore } from "../../../stores/projectStore";
 import { useTbStore } from "../../../stores/tbStore";
 import type { Project, TbEntry } from "../../../types";
 
-// Tauri API 모킹
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-// Tauri 커맨드 래퍼 모킹
-vi.mock("../../../tauri/commands", () => ({
+// vi.mock은 호이스팅되므로 vi.hoisted()로 mockAdapter를 먼저 정의
+const mockAdapter = vi.hoisted(() => ({
   createTb: vi.fn().mockResolvedValue("tb-id-1"),
   lookupTb: vi.fn().mockResolvedValue([]),
   addToTb: vi.fn().mockResolvedValue({
@@ -27,7 +22,11 @@ vi.mock("../../../tauri/commands", () => ({
   }),
 }));
 
-import { createTb, lookupTb, addToTb } from "../../../tauri/commands";
+vi.mock("../../../adapters", () => ({
+  adapter: mockAdapter,
+  isTauri: () => false,
+  fileRefFromDrop: (file: File) => `web-file://${file.name}`,
+}));
 
 const mockTbEntries: TbEntry[] = [
   {
@@ -83,8 +82,8 @@ describe("TbPanel", () => {
     vi.clearAllMocks();
     useProjectStore.setState({ project: null, currentSegmentIndex: 0 });
     useTbStore.setState({ activeTbId: null });
-    vi.mocked(createTb).mockResolvedValue("tb-id-1");
-    vi.mocked(lookupTb).mockResolvedValue([]);
+    mockAdapter.createTb.mockResolvedValue("tb-id-1");
+    mockAdapter.lookupTb.mockResolvedValue([]);
   });
 
   describe("빈 상태 처리", () => {
@@ -100,7 +99,7 @@ describe("TbPanel", () => {
 
     it("project가 있지만 TB 용어가 없을 때 '용어 없음' 메시지를 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
-      vi.mocked(lookupTb).mockResolvedValue([]);
+      mockAdapter.lookupTb.mockResolvedValue([]);
 
       render(<TbPanel />);
 
@@ -114,7 +113,7 @@ describe("TbPanel", () => {
     it("TB 용어 목록을 소스 → 타겟 형식으로 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue(mockTbEntries);
+      mockAdapter.lookupTb.mockResolvedValue(mockTbEntries);
 
       render(<TbPanel />);
 
@@ -131,7 +130,7 @@ describe("TbPanel", () => {
     it("용어 노트가 있는 경우 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue([mockTbEntries[0]]);
+      mockAdapter.lookupTb.mockResolvedValue([mockTbEntries[0]]);
 
       render(<TbPanel />);
 
@@ -143,7 +142,7 @@ describe("TbPanel", () => {
     it("용어가 있을 때 '용어 없음' 메시지를 표시하지 않는다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue(mockTbEntries);
+      mockAdapter.lookupTb.mockResolvedValue(mockTbEntries);
 
       render(<TbPanel />);
 
@@ -157,7 +156,7 @@ describe("TbPanel", () => {
     it("금지 용어에 '금지어' 배지를 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue([mockTbEntries[2]]); // forbidden: true
+      mockAdapter.lookupTb.mockResolvedValue([mockTbEntries[2]]); // forbidden: true
 
       render(<TbPanel />);
 
@@ -169,7 +168,7 @@ describe("TbPanel", () => {
     it("금지 용어 항목에 'forbidden' CSS 클래스가 적용된다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue([mockTbEntries[2]]); // forbidden: true
+      mockAdapter.lookupTb.mockResolvedValue([mockTbEntries[2]]); // forbidden: true
 
       render(<TbPanel />);
 
@@ -183,7 +182,7 @@ describe("TbPanel", () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
       // forbidden: false인 항목만
-      vi.mocked(lookupTb).mockResolvedValue([mockTbEntries[0], mockTbEntries[1]]);
+      mockAdapter.lookupTb.mockResolvedValue([mockTbEntries[0], mockTbEntries[1]]);
 
       render(<TbPanel />);
 
@@ -195,7 +194,7 @@ describe("TbPanel", () => {
     it("금지 용어와 일반 용어가 혼합된 경우 금지 용어만 배지를 표시한다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
-      vi.mocked(lookupTb).mockResolvedValue(mockTbEntries); // 일반 2개 + 금지 1개
+      mockAdapter.lookupTb.mockResolvedValue(mockTbEntries); // 일반 2개 + 금지 1개
 
       render(<TbPanel />);
 
@@ -230,7 +229,7 @@ describe("TbPanel", () => {
 
     it("TB 이름 입력 후 만들기 클릭 시 createTb가 호출된다", async () => {
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
-      vi.mocked(createTb).mockResolvedValueOnce("new-tb-id");
+      mockAdapter.createTb.mockResolvedValueOnce("new-tb-id");
 
       render(<TbPanel />);
       fireEvent.click(screen.getByTitle("새 TB 만들기"));
@@ -240,7 +239,7 @@ describe("TbPanel", () => {
       fireEvent.click(screen.getByText("만들기"));
 
       await waitFor(() => {
-        expect(createTb).toHaveBeenCalledWith("My Test TB");
+        expect(mockAdapter.createTb).toHaveBeenCalledWith("My Test TB");
       });
     });
 
@@ -249,7 +248,7 @@ describe("TbPanel", () => {
       fireEvent.click(screen.getByTitle("새 TB 만들기"));
       fireEvent.click(screen.getByText("만들기"));
 
-      expect(createTb).not.toHaveBeenCalled();
+      expect(mockAdapter.createTb).not.toHaveBeenCalled();
     });
   });
 
@@ -277,8 +276,8 @@ describe("TbPanel", () => {
     });
 
     it("소스·타겟 용어 입력 후 추가 클릭 시 addToTb가 호출된다", async () => {
-      vi.mocked(addToTb).mockResolvedValueOnce(mockTbEntries[0]);
-      vi.mocked(lookupTb).mockResolvedValue([]);
+      mockAdapter.addToTb.mockResolvedValueOnce(mockTbEntries[0]);
+      mockAdapter.lookupTb.mockResolvedValue([]);
 
       useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
       useTbStore.setState({ activeTbId: "tb-id-1" });
@@ -291,7 +290,7 @@ describe("TbPanel", () => {
       fireEvent.click(screen.getByText("추가"));
 
       await waitFor(() => {
-        expect(addToTb).toHaveBeenCalledWith(
+        expect(mockAdapter.addToTb).toHaveBeenCalledWith(
           "tb-id-1",
           "Hello",
           "안녕하세요",
