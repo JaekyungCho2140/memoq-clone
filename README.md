@@ -27,8 +27,30 @@ Built with **Tauri 2 + React + TypeScript** (frontend) and **Rust** (TM/TB/parse
 
 ## Platform Support
 
-- **Windows**: `.msi` installer
-- **macOS**: `.dmg` installer
+| Platform | Installer | Architecture |
+|----------|-----------|-------------|
+| **macOS** | `.dmg` | Universal Binary (Apple Silicon + Intel) |
+| **Windows** | `.msi` (NSIS) | x64 |
+| **Linux** | `.AppImage` | x64 |
+
+## Installation
+
+### macOS
+
+1. Download `memoQ-Clone_*.dmg` from [Releases](https://github.com/JaekyungCho2140/memoq-clone/releases)
+2. Open the `.dmg` and drag **memoQ Clone** to Applications
+3. On first launch, right-click → Open (if Gatekeeper blocks unsigned app)
+
+### Windows
+
+1. Download `memoQ-Clone_*_x64-setup.exe` or `memoQ-Clone_*_x64_en-US.msi` from [Releases](https://github.com/JaekyungCho2140/memoq-clone/releases)
+2. Run the installer and follow the prompts
+
+### Linux
+
+1. Download `memoQ-Clone_*.AppImage` from [Releases](https://github.com/JaekyungCho2140/memoq-clone/releases)
+2. Make it executable: `chmod +x memoQ-Clone_*.AppImage`
+3. Run: `./memoQ-Clone_*.AppImage`
 
 ## Development Setup
 
