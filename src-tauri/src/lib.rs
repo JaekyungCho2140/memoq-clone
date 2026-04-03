@@ -3,6 +3,7 @@ pub mod livedocs;
 pub mod models;
 pub mod mt;
 pub mod parser;
+pub mod plugin;
 pub mod qa;
 pub mod tb;
 pub mod tm;
@@ -14,6 +15,10 @@ use commands::{
     },
     mt::{mt_get_providers, mt_save_api_key, mt_translate},
     parser::{export_xliff, parse_file},
+    plugin::{
+        plugin_list, plugin_mt_translate, plugin_qa_check, plugin_scan, plugin_set_enabled,
+        PluginState,
+    },
     project::{
         add_file_to_project, get_project_stats, get_recent_projects, load_project,
         remove_file_from_project, save_project,
@@ -28,6 +33,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(PluginState(std::sync::Mutex::new(
+            crate::plugin::PluginRegistry::new(),
+        )))
         .invoke_handler(tauri::generate_handler![
             parse_file,
             export_xliff,
@@ -53,6 +61,11 @@ pub fn run() {
             livedocs_add_document,
             livedocs_list_libraries,
             livedocs_search,
+            plugin_list,
+            plugin_scan,
+            plugin_set_enabled,
+            plugin_mt_translate,
+            plugin_qa_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
