@@ -21,6 +21,8 @@ export interface Segment {
 export interface Project {
   id: string;
   name: string;
+  /** Absolute path to the original source file (used for export) */
+  sourcePath: string;
   sourceLang: string;
   targetLang: string;
   createdAt: string;

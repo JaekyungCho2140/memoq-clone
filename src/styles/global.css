@@ -1,9 +1,33 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e1e; color: #d4d4d4; height: 100vh; overflow: hidden; }
 .app-root { height: 100vh; display: flex; flex-direction: column; }
-.editor-layout { display: grid; grid-template-columns: 320px 1fr 300px; height: 100vh; overflow: hidden; }
+
+/* Editor root wraps toolbar + layout */
+.editor-root { display: flex; flex-direction: column; height: 100vh; }
+.editor-layout { display: grid; grid-template-columns: 320px 1fr 300px; flex: 1; overflow: hidden; }
 .segment-list-pane, .panel-pane { overflow-y: auto; border-right: 1px solid #333; background: #252526; }
 .editor-pane { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
+  min-height: 38px;
+}
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+.project-name { font-weight: 600; font-size: 13px; color: #e0e0e0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang-pair { font-size: 12px; color: #888; }
+.progress-badge { font-size: 11px; background: #094771; color: #9cdcfe; padding: 2px 7px; border-radius: 10px; }
+.btn-toolbar { padding: 4px 12px; font-size: 12px; border-radius: 4px; background: #007acc; color: #fff; border: none; cursor: pointer; }
+.btn-toolbar:hover { background: #005f9e; }
+.btn-toolbar.btn-danger { background: #c0392b; }
+.btn-toolbar.btn-danger:hover { background: #a93226; }
 
 /* Segment List — memoQ 스타일 테이블 */
 .segment-list { display: flex; flex-direction: column; font-size: 12px; }
@@ -66,14 +90,41 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .status-confirmed    { background: #1565c0; }
 
 /* TM / TB 패널 */
-.tm-panel, .tb-panel { padding: 12px; margin-bottom: 16px; }
-.tm-panel h3, .tb-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 8px; }
+.tm-panel, .tb-panel { padding: 12px; margin-bottom: 4px; border-bottom: 1px solid #333; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.panel-header h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; }
+.panel-actions { display: flex; gap: 4px; }
+.btn-small { padding: 3px 8px; font-size: 11px; border-radius: 3px; background: #007acc; color: #fff; border: none; cursor: pointer; }
+.btn-small.btn-outline { background: transparent; border: 1px solid #555; color: #aaa; }
+.btn-small.btn-outline:hover { border-color: #888; color: #ddd; }
+.create-form, .add-term-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #2d2d2d;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.create-form { flex-direction: row; align-items: center; }
+.create-form input, .add-term-form input { flex: 1; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 3px; padding: 4px 8px; font-size: 12px; }
+.add-term-form input { width: 100%; }
+.forbidden-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #aaa; }
+.form-actions { display: flex; gap: 4px; }
 .tm-match { padding: 8px; border: 1px solid #333; border-radius: 4px; margin-bottom: 6px; cursor: pointer; font-size: 12px; }
 .tm-match:hover { background: #2d2d2d; }
 .match-score { font-weight: bold; color: #4ec9b0; margin-bottom: 4px; }
-.tb-entry { display: flex; gap: 8px; align-items: center; padding: 6px; font-size: 12px; border-bottom: 1px solid #333; }
-.tb-entry.forbidden { border-left: 3px solid #f44; }
-.forbidden-badge { background: #f44; color: white; border-radius: 3px; padding: 1px 4px; font-size: 10px; }
+.match-source { color: #888; margin-bottom: 2px; }
+.match-target { color: #9cdcfe; }
+.tb-entry { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 5px 4px; font-size: 12px; border-bottom: 1px solid #2d2d2d; }
+.tb-entry.forbidden { border-left: 3px solid #f44; padding-left: 5px; }
+.source-term { color: #d4d4d4; }
+.arrow { color: #555; }
+.target-term { color: #9cdcfe; }
+.forbidden-badge { background: #c0392b; color: white; border-radius: 3px; padding: 1px 4px; font-size: 10px; }
+.term-notes { color: #666; font-style: italic; font-size: 11px; width: 100%; }
+.no-matches, .no-terms { color: #555; font-size: 12px; padding: 8px 0; }
 
 /* Project View */
 .project-view { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; }

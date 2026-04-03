@@ -1,6 +1,9 @@
+mod docx;
 pub mod traits;
 mod xliff;
 
+#[allow(unused_imports)]
+pub use docx::DocxParser;
 #[allow(unused_imports)]
 pub use traits::Parser;
 #[allow(unused_imports)]
@@ -14,7 +17,7 @@ use std::path::Path;
 pub fn parse(path: &str) -> Result<Project> {
     match Path::new(path).extension().and_then(|e| e.to_str()) {
         Some("xliff") | Some("xlf") => xliff::parse(path),
-        Some("docx") => bail!("DOCX parser not yet implemented"),
+        Some("docx") => docx::parse(path),
         Some(ext) => bail!("Unsupported file extension: .{ext}"),
         None => bail!("File has no extension: {path}"),
     }
@@ -25,7 +28,7 @@ pub fn parse(path: &str) -> Result<Project> {
 pub fn export(segments: &[Segment], input_path: &str, output_path: &str) -> Result<()> {
     match Path::new(input_path).extension().and_then(|e| e.to_str()) {
         Some("xliff") | Some("xlf") => xliff::export(segments, input_path, output_path),
-        Some("docx") => bail!("DOCX export not yet implemented"),
+        Some("docx") => docx::export(segments, input_path, output_path),
         Some(ext) => bail!("Unsupported file extension: .{ext}"),
         None => bail!("File has no extension: {input_path}"),
     }

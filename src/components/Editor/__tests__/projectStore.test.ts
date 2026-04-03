@@ -5,6 +5,7 @@ import type { Project } from "../../../types";
 const mockProject: Project = {
   id: "proj-1",
   name: "Test Project",
+  sourcePath: "/tmp/test.xliff",
   sourceLang: "en-US",
   targetLang: "ko-KR",
   createdAt: "2026-01-01T00:00:00Z",

@@ -1,18 +1,15 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum SegmentStatus {
+    #[default]
     Untranslated,
     Draft,
     Translated,
     Confirmed,
-}
-
-impl Default for SegmentStatus {
-    fn default() -> Self { Self::Untranslated }
 }
 
 impl std::str::FromStr for SegmentStatus {
@@ -43,6 +40,8 @@ pub struct Segment {
 pub struct Project {
     pub id: String,
     pub name: String,
+    /// Absolute path to the original source file (used for export)
+    pub source_path: String,
     pub source_lang: String,
     pub target_lang: String,
     pub created_at: DateTime<Utc>,
@@ -51,7 +50,11 @@ pub struct Project {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum MatchType { Exact, Fuzzy, Context }
+pub enum MatchType {
+    Exact,
+    Fuzzy,
+    Context,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

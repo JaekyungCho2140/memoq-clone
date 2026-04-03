@@ -6,6 +6,7 @@ use anyhow::Result;
 /// Each implementor handles one file format (e.g. XLIFF, DOCX) and provides:
 /// - `parse`  — read a source file and return a `Project` with its segments
 /// - `export` — write translated segments back in the original format
+#[allow(dead_code)]
 pub trait Parser: Send + Sync {
     /// Parse the file at `path` and return a [`Project`] containing all segments.
     fn parse(&self, path: &str) -> Result<Project>;

@@ -18,7 +18,12 @@ export const useProjectStore = create<ProjectState>((set) => ({
   updateSegment: (id, updates) =>
     set((state) => ({
       project: state.project
-        ? { ...state.project, segments: state.project.segments.map((s) => s.id === id ? { ...s, ...updates } : s) }
+        ? {
+            ...state.project,
+            segments: state.project.segments.map((s) =>
+              s.id === id ? { ...s, ...updates } : s
+            ),
+          }
         : null,
     })),
   setCurrentSegmentIndex: (index) => set({ currentSegmentIndex: index }),

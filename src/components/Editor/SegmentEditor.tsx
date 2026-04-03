@@ -35,12 +35,12 @@ export function SegmentEditor() {
   const handleTargetChange = async (value: string) => {
     const status: SegmentStatus = value.trim() ? "draft" : "untranslated";
     updateSegment(segment.id, { target: value, status });
-    await saveSegment(project.id, segment.id, value, status);
+    await saveSegment(project.id, segment.id, segment.source, value, status, segment.order);
   };
 
   const handleConfirm = async () => {
     updateSegment(segment.id, { status: "confirmed" });
-    await saveSegment(project.id, segment.id, segment.target, "confirmed");
+    await saveSegment(project.id, segment.id, segment.source, segment.target, "confirmed", segment.order);
     goToNext();
   };
 

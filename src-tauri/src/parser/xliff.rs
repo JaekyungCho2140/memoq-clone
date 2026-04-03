@@ -22,6 +22,7 @@ enum XliffVersion {
 
 // ─── Public zero-size struct implementing the Parser trait ────────────────────
 
+#[allow(dead_code)]
 pub struct XliffParser;
 
 impl Parser for XliffParser {
@@ -37,8 +38,8 @@ impl Parser for XliffParser {
 
 /// Parse an XLIFF 1.2 or 2.0 file and return a [`Project`].
 pub fn parse(path: &str) -> Result<Project> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read XLIFF file: {path}"))?;
+    let content =
+        fs::read_to_string(path).with_context(|| format!("Failed to read XLIFF file: {path}"))?;
     match detect_version(&content)? {
         XliffVersion::V1 => parse_v1(&content, path),
         XliffVersion::V2 => parse_v2(&content, path),
@@ -195,6 +196,7 @@ fn parse_v1(content: &str, path: &str) -> Result<Project> {
     Ok(Project {
         id: Uuid::new_v4().to_string(),
         name,
+        source_path: path.to_string(),
         source_lang,
         target_lang,
         created_at: Utc::now(),
@@ -318,6 +320,7 @@ fn parse_v2(content: &str, path: &str) -> Result<Project> {
     Ok(Project {
         id: Uuid::new_v4().to_string(),
         name,
+        source_path: path.to_string(),
         source_lang,
         target_lang,
         created_at: Utc::now(),
@@ -332,11 +335,7 @@ fn parse_v2(content: &str, path: &str) -> Result<Project> {
 // If a `<trans-unit>` has no `<target>` element, one is injected just before
 // the `</trans-unit>` closing tag.
 
-fn export_v1(
-    content: &str,
-    output_path: &str,
-    seg_map: &HashMap<u32, &Segment>,
-) -> Result<()> {
+fn export_v1(content: &str, output_path: &str, seg_map: &HashMap<u32, &Segment>) -> Result<()> {
     let mut reader = Reader::from_str(content);
     reader.config_mut().trim_text(false);
 
@@ -383,10 +382,8 @@ fn export_v1(
                     if !has_target {
                         if let Some(seg) = seg_map.get(&unit_counter) {
                             if !seg.target.is_empty() {
-                                writer
-                                    .write_event(Event::Start(BytesStart::new("target")))?;
-                                writer
-                                    .write_event(Event::Text(BytesText::new(&seg.target)))?;
+                                writer.write_event(Event::Start(BytesStart::new("target")))?;
+                                writer.write_event(Event::Text(BytesText::new(&seg.target)))?;
                                 writer.write_event(Event::End(BytesEnd::new("target")))?;
                             }
                         }
@@ -415,11 +412,7 @@ fn export_v1(
 
 // ─── XLIFF 2.0 export ─────────────────────────────────────────────────────────
 
-fn export_v2(
-    content: &str,
-    output_path: &str,
-    seg_map: &HashMap<u32, &Segment>,
-) -> Result<()> {
+fn export_v2(content: &str, output_path: &str, seg_map: &HashMap<u32, &Segment>) -> Result<()> {
     let mut reader = Reader::from_str(content);
     reader.config_mut().trim_text(false);
 
@@ -469,10 +462,8 @@ fn export_v2(
                     if !has_target {
                         if let Some(seg) = seg_map.get(&unit_counter) {
                             if !seg.target.is_empty() {
-                                writer
-                                    .write_event(Event::Start(BytesStart::new("target")))?;
-                                writer
-                                    .write_event(Event::Text(BytesText::new(&seg.target)))?;
+                                writer.write_event(Event::Start(BytesStart::new("target")))?;
+                                writer.write_event(Event::Text(BytesText::new(&seg.target)))?;
                                 writer.write_event(Event::End(BytesEnd::new("target")))?;
                             }
                         }
@@ -681,13 +672,26 @@ mod tests {
             order: 0,
         }];
 
-        export(&segments, input.path().to_str().unwrap(), output.path().to_str().unwrap())
-            .unwrap();
+        export(
+            &segments,
+            input.path().to_str().unwrap(),
+            output.path().to_str().unwrap(),
+        )
+        .unwrap();
 
         let result = fs::read_to_string(output.path()).unwrap();
-        assert!(result.contains("New translation"), "Expected new translation in output");
-        assert!(!result.contains("Old translation"), "Old translation must be removed");
-        assert!(result.contains("<source>Hello</source>"), "Source must be preserved");
+        assert!(
+            result.contains("New translation"),
+            "Expected new translation in output"
+        );
+        assert!(
+            !result.contains("Old translation"),
+            "Old translation must be removed"
+        );
+        assert!(
+            result.contains("<source>Hello</source>"),
+            "Source must be preserved"
+        );
     }
 
     #[test]
@@ -713,8 +717,12 @@ mod tests {
             order: 0,
         }];
 
-        export(&segments, input.path().to_str().unwrap(), output.path().to_str().unwrap())
-            .unwrap();
+        export(
+            &segments,
+            input.path().to_str().unwrap(),
+            output.path().to_str().unwrap(),
+        )
+        .unwrap();
 
         let result = fs::read_to_string(output.path()).unwrap();
         assert!(result.contains("<target>Noch kein Ziel</target>"));
@@ -744,8 +752,12 @@ mod tests {
             order: 0,
         }];
 
-        export(&segments, input.path().to_str().unwrap(), output.path().to_str().unwrap())
-            .unwrap();
+        export(
+            &segments,
+            input.path().to_str().unwrap(),
+            output.path().to_str().unwrap(),
+        )
+        .unwrap();
 
         let result = fs::read_to_string(output.path()).unwrap();
         assert!(result.contains("Keep this source"));
@@ -779,8 +791,12 @@ mod tests {
             order: 0,
         }];
 
-        export(&segments, input.path().to_str().unwrap(), output.path().to_str().unwrap())
-            .unwrap();
+        export(
+            &segments,
+            input.path().to_str().unwrap(),
+            output.path().to_str().unwrap(),
+        )
+        .unwrap();
 
         let result = fs::read_to_string(output.path()).unwrap();
         assert!(result.contains("안녕하세요"));
@@ -811,8 +827,12 @@ mod tests {
             order: 0,
         }];
 
-        export(&segments, input.path().to_str().unwrap(), output.path().to_str().unwrap())
-            .unwrap();
+        export(
+            &segments,
+            input.path().to_str().unwrap(),
+            output.path().to_str().unwrap(),
+        )
+        .unwrap();
 
         let result = fs::read_to_string(output.path()).unwrap();
         assert!(result.contains("未翻訳"));
@@ -845,7 +865,11 @@ mod tests {
             order: 0,
         }];
         parser
-            .export(&updated, f.path().to_str().unwrap(), output.path().to_str().unwrap())
+            .export(
+                &updated,
+                f.path().to_str().unwrap(),
+                output.path().to_str().unwrap(),
+            )
             .unwrap();
         let out_content = fs::read_to_string(output.path()).unwrap();
         assert!(out_content.contains("트레이트 테스트 업데이트"));
