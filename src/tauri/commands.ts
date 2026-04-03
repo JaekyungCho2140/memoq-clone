@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams, QaIssue, MtTranslateParams, MtResult, MtSettings, ProjectStats, RecentProjects, LiveDocsLibrary, LiveDocsMatch } from "../types";
+import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams, QaIssue, MtTranslateParams, MtResult, MtSettings, ProjectStats, RecentProjects, LiveDocsLibrary, LiveDocsMatch, Plugin, PluginUpdateRequest } from "../types";
 
 export async function parseFile(path: string): Promise<Project> {
   return invoke<Project>("parse_file", { path });
@@ -193,4 +193,22 @@ export async function liveDocsSearch(
   minScore: number,
 ): Promise<LiveDocsMatch[]> {
   return invoke<LiveDocsMatch[]>("livedocs_search", { query, libId, minScore });
+}
+
+// ── Plugins (Feature 13 — Phase 4) ───────────────────────────────────────────
+
+export async function pluginList(): Promise<Plugin[]> {
+  return invoke<Plugin[]>("plugin_list");
+}
+
+export async function pluginInstall(wasmPath: string, paramValues: Record<string, string>): Promise<Plugin> {
+  return invoke<Plugin>("plugin_install", { wasmPath, paramValues });
+}
+
+export async function pluginUpdate(id: string, req: PluginUpdateRequest): Promise<Plugin> {
+  return invoke<Plugin>("plugin_update", { id, ...req });
+}
+
+export async function pluginRemove(id: string): Promise<void> {
+  return invoke("plugin_remove", { id });
 }

@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { adapter } from "../../adapters";
 import { useProjectStore } from "../../stores/projectStore";
 
-export function HomePage() {
+interface HomePageProps {
+  onOpenAlignment?: () => void;
+}
+
+export function HomePage({ onOpenAlignment }: HomePageProps) {
   const [recentProjects, setRecentProjects] = useState<string[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const setProject = useProjectStore((s) => s.setProject);
@@ -69,6 +73,14 @@ export function HomePage() {
           <span className="home-action-label">프로젝트 열기</span>
           <span className="home-action-desc">.mqclone 프로젝트 파일</span>
         </button>
+
+        {onOpenAlignment && (
+          <button className="home-action-btn home-action-secondary" onClick={onOpenAlignment}>
+            <span className="home-action-icon">🔗</span>
+            <span className="home-action-label">TM 정렬</span>
+            <span className="home-action-desc">소스·타겟 파일을 정렬하여 TM 생성</span>
+          </button>
+        )}
       </div>
 
       <div className="home-recent">

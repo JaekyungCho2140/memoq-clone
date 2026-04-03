@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useProjectStore } from "../../stores/projectStore";
+import { PluginManager } from "../Plugins/PluginManager";
 
 const LANGUAGES = [
   { code: "ko", label: "한국어" },
@@ -95,6 +96,10 @@ export function ProjectSettingsModal({ onClose }: Props) {
             <div className="settings-resource-placeholder">
               <span>🔗 TM/TB 연결 설정 (준비 중)</span>
             </div>
+          </section>
+
+          <section className="settings-section">
+            <PluginManager />
           </section>
         </div>
 

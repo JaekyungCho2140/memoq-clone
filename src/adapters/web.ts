@@ -34,6 +34,12 @@ import type {
   RecentProjects,
   LiveDocsLibrary,
   LiveDocsMatch,
+  Plugin,
+  PluginInstallRequest,
+  PluginUpdateRequest,
+  AlignmentRequest,
+  AlignmentResult,
+  AlignmentConfirmRequest,
 } from "../types";
 
 // ── File registry ─────────────────────────────────────────────────────────────
@@ -387,6 +393,60 @@ export const webAdapter: IAppAdapter = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, libId, minScore }),
+    });
+  },
+
+  // ── Plugins ───────────────────────────────────────────────────────────────
+
+  async pluginList(): Promise<Plugin[]> {
+    try {
+      return await apiJson<Plugin[]>("/api/plugins");
+    } catch {
+      return [];
+    }
+  },
+
+  async pluginInstall(req: PluginInstallRequest): Promise<Plugin> {
+    const file = resolveFile(req.wasmFile);
+    const body = new FormData();
+    body.append("file", file);
+    if (req.paramValues) {
+      body.append("params", JSON.stringify(req.paramValues));
+    }
+    return apiJson<Plugin>("/api/plugins", { method: "POST", body });
+  },
+
+  async pluginUpdate(id: string, req: PluginUpdateRequest): Promise<Plugin> {
+    return apiJson<Plugin>(`/api/plugins/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+  },
+
+  async pluginRemove(id: string): Promise<void> {
+    await apiJson<unknown>(`/api/plugins/${id}`, { method: "DELETE" });
+  },
+
+  // ── TM Alignment (Phase 4, AFR-47) ───────────────────────────────────────
+
+  async alignmentAlign(req: AlignmentRequest): Promise<AlignmentResult> {
+    const sourceFile = resolveFile(req.sourceFileRef);
+    const targetFile = resolveFile(req.targetFileRef);
+    const body = new FormData();
+    body.append("sourceFile", sourceFile);
+    body.append("targetFile", targetFile);
+    body.append("sourceLang", req.sourceLang);
+    body.append("targetLang", req.targetLang);
+    body.append("tmId", req.tmId);
+    return apiJson<AlignmentResult>("/api/alignment/align", { method: "POST", body });
+  },
+
+  async alignmentConfirm(req: AlignmentConfirmRequest): Promise<void> {
+    await apiJson<unknown>("/api/alignment/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
     });
   },
 };

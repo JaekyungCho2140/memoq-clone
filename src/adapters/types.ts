@@ -26,6 +26,12 @@ import type {
   RecentProjects,
   LiveDocsLibrary,
   LiveDocsMatch,
+  Plugin,
+  PluginInstallRequest,
+  PluginUpdateRequest,
+  AlignmentRequest,
+  AlignmentResult,
+  AlignmentConfirmRequest,
 } from "../types";
 
 export type FileRef = string;
@@ -113,4 +119,14 @@ export interface IAppAdapter {
   liveDocsListLibraries(): Promise<LiveDocsLibrary[]>;
   liveDocsAddDocument(libId: string, fileRef: FileRef): Promise<LiveDocsLibrary>;
   liveDocsSearch(query: string, libId: string, minScore: number): Promise<LiveDocsMatch[]>;
+
+  // ── Plugins (Feature 13 — Phase 4) ───────────────────────────────────────
+  pluginList(): Promise<Plugin[]>;
+  pluginInstall(req: PluginInstallRequest): Promise<Plugin>;
+  pluginUpdate(id: string, req: PluginUpdateRequest): Promise<Plugin>;
+  pluginRemove(id: string): Promise<void>;
+
+  // ── TM Alignment (Phase 4, AFR-47) ───────────────────────────────────────
+  alignmentAlign(req: AlignmentRequest): Promise<AlignmentResult>;
+  alignmentConfirm(req: AlignmentConfirmRequest): Promise<void>;
 }

@@ -140,3 +140,116 @@ export interface LiveDocsMatch {
   docPath: string;
   score: number;
 }
+
+// Feature 13 — Plugin Ecosystem (Phase 4)
+
+export type PluginKind = "MtProvider" | "FileParser" | "QaRule";
+
+export interface PluginParam {
+  key: string;
+  label: string;
+  value: string;
+  /** true = render as password field */
+  secret?: boolean;
+}
+
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  kind: PluginKind;
+  enabled: boolean;
+  /** User-configurable parameters defined in the manifest */
+  params: PluginParam[];
+  /** Non-null when the runtime reported a load/execution error */
+  error: string | null;
+  installedAt: string;
+}
+
+export interface PluginInstallRequest {
+  /** FileRef pointing to the .wasm binary */
+  wasmFile: string;
+  /** Optional initial param values keyed by param.key */
+  paramValues?: Record<string, string>;
+}
+
+export interface PluginUpdateRequest {
+  enabled?: boolean;
+  paramValues?: Record<string, string>;
+}
+
+// Feature — Vendor Portal (Phase 4)
+
+export type VendorAssignmentStatus =
+  | "pending"
+  | "in_progress"
+  | "delivered"
+  | "accepted"
+  | "rejected";
+
+export interface VendorAssignment {
+  id: string;
+  projectId: string;
+  projectName: string;
+  fileName: string;
+  sourceLang: string;
+  targetLang: string;
+  deadline: string;
+  status: VendorAssignmentStatus;
+  /** Vendor's progress (0–100) */
+  progressPct: number;
+  totalSegments: number;
+  translatedSegments: number;
+  vendorId: string;
+  vendorName: string;
+  /** ISO string when delivered */
+  deliveredAt: string | null;
+  /** Admin note on rejection */
+  rejectionNote: string | null;
+}
+
+export interface VendorInfo {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  langPairs: string[]; // e.g. ["en→ko", "ja→ko"]
+  activeAssignments: number;
+  totalDelivered: number;
+}
+
+// Feature — TM Alignment (Phase 4, AFR-47)
+
+export type AlignmentPhase = "upload" | "processing" | "review" | "saving" | "done";
+
+/** A single aligned sentence pair, ready for user review. */
+export interface AlignedPair {
+  id: string;
+  source: string;
+  target: string;
+  /** Confidence score 0.0–1.0 returned by the alignment engine */
+  score: number;
+  /** Whether the user has confirmed this pair for TM import */
+  confirmed: boolean;
+  /** Whether the user has manually edited either side */
+  modified: boolean;
+}
+
+export interface AlignmentRequest {
+  sourceFileRef: string;
+  targetFileRef: string;
+  sourceLang: string;
+  targetLang: string;
+  tmId: string;
+}
+
+export interface AlignmentResult {
+  pairs: AlignedPair[];
+}
+
+export interface AlignmentConfirmRequest {
+  tmId: string;
+  sourceLang: string;
+  targetLang: string;
+  pairs: Array<{ source: string; target: string }>;
+}

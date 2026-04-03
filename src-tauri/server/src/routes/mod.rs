@@ -1,3 +1,4 @@
+pub mod alignment;
 pub mod analytics;
 pub mod files;
 pub mod projects;
@@ -7,7 +8,7 @@ pub mod tm;
 
 use axum::{
     middleware,
-    routing::{delete, get, patch, post},
+    routing::{get, delete, patch, post},
     Router,
 };
 
@@ -63,6 +64,9 @@ pub fn api_routes(state: AppState) -> Router {
         .route("/analytics/team", get(analytics::team_analytics))
         .route("/analytics/user/:id", get(analytics::user_analytics))
         .route("/analytics/project/:id", get(analytics::project_analytics))
+        // Alignment
+        .route("/alignment/align", post(alignment::align_documents))
+        .route("/alignment/confirm", post(alignment::confirm_alignment))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state.clone());
 

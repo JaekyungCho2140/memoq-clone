@@ -97,4 +97,21 @@ export const tauriAdapter: IAppAdapter = {
   liveDocsAddDocument: (libId, fileRef) => cmds.liveDocsAddDocument(libId, fileRef),
 
   liveDocsSearch: (query, libId, minScore) => cmds.liveDocsSearch(query, libId, minScore),
+
+  // ── Plugins ───────────────────────────────────────────────────────────────
+
+  pluginList: () => cmds.pluginList(),
+
+  async pluginInstall(req) {
+    // In Tauri mode, fileRef is a local path — pass it directly to the backend
+    return cmds.pluginInstall(req.wasmFile, req.paramValues ?? {});
+  },
+
+  pluginUpdate: (id, req) => cmds.pluginUpdate(id, req),
+
+  pluginRemove: (id) => cmds.pluginRemove(id),
+
+  // ── TM Alignment (Phase 4, AFR-47) — not yet implemented in Tauri backend ─
+  alignmentAlign: () => Promise.reject(new Error("alignment not supported in Tauri mode")),
+  alignmentConfirm: () => Promise.reject(new Error("alignment not supported in Tauri mode")),
 };

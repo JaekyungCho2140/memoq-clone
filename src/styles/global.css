@@ -537,3 +537,56 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ── Plugin Manager (Feature 13 — Phase 4) ──────────────────────────────── */
+.plugin-manager { padding: 12px; }
+.plugin-manager-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.plugin-manager-title { font-size: 12px; font-weight: 600; color: #9cdcfe; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Error banner */
+.plugin-error-banner { display: flex; align-items: center; justify-content: space-between; background: rgba(200,50,50,0.15); border: 1px solid rgba(200,50,50,0.4); border-radius: 4px; color: #f48771; font-size: 12px; padding: 6px 10px; margin-bottom: 8px; }
+.plugin-error-dismiss { background: none; border: none; color: #f48771; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+
+/* Install panel */
+.plugin-install-panel { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.plugin-drop-zone { flex: 1; border: 1px dashed #555; border-radius: 4px; padding: 8px 10px; cursor: pointer; font-size: 12px; color: #888; background: #1e1e1e; text-align: center; transition: border-color 0.15s, color 0.15s; }
+.plugin-drop-zone:hover, .plugin-drop-zone--active { border-color: #007acc; color: #4ec9b0; }
+.plugin-drop-filename { color: #d4d4d4; }
+.plugin-drop-hint { color: #888; }
+
+/* Plugin list */
+.plugin-list { display: flex; flex-direction: column; gap: 4px; }
+.plugin-empty { font-size: 12px; color: #555; text-align: center; padding: 16px 0; }
+.plugin-row { display: flex; align-items: center; justify-content: space-between; background: #2d2d2d; border: 1px solid #3c3c3c; border-radius: 4px; padding: 7px 10px; gap: 8px; }
+.plugin-row--error { border-color: rgba(200,50,50,0.5); }
+.plugin-row-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.plugin-row-name { font-size: 12px; font-weight: 600; color: #d4d4d4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plugin-row-version { font-size: 11px; color: #888; }
+.plugin-row-kind { font-size: 10px; color: #4ec9b0; background: rgba(78,201,176,0.1); border-radius: 2px; padding: 1px 4px; align-self: flex-start; }
+.plugin-row-errtext { font-size: 11px; color: #f48771; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plugin-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* Toggle switch */
+.plugin-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.plugin-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.plugin-toggle-slider { width: 28px; height: 16px; background: #555; border-radius: 8px; transition: background 0.2s; }
+.plugin-toggle-slider::after { content: ""; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: transform 0.2s; }
+.plugin-toggle input:checked + .plugin-toggle-slider { background: #007acc; }
+.plugin-toggle input:checked + .plugin-toggle-slider::after { transform: translateX(12px); }
+
+/* Danger button variant */
+.btn-danger { border-color: rgba(200,50,50,0.5) !important; color: #f48771 !important; }
+.btn-danger:hover { border-color: #f48771 !important; color: #ff8888 !important; }
+
+/* Config modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-box { background: #252526; border: 1px solid #444; border-radius: 6px; width: 360px; max-width: 90vw; display: flex; flex-direction: column; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 0; }
+.modal-title { font-size: 13px; font-weight: 600; color: #d4d4d4; }
+.modal-close { background: none; border: none; color: #888; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
+.modal-close:hover { color: #d4d4d4; }
+.modal-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.modal-footer { display: flex; gap: 6px; justify-content: flex-end; padding: 8px 14px 12px; }
+.plugin-no-params { font-size: 12px; color: #888; }
+.plugin-param-row { display: flex; flex-direction: column; gap: 3px; }
+.plugin-param-label { font-size: 11px; color: #888; }
