@@ -1,0 +1,24 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1e1e1e; color: #d4d4d4; height: 100vh; overflow: hidden; }
+.app-root { height: 100vh; display: flex; flex-direction: column; }
+.editor-layout { display: grid; grid-template-columns: 280px 1fr 320px; height: 100vh; overflow: hidden; }
+.segment-list-pane, .panel-pane { overflow-y: auto; border-right: 1px solid #333; background: #252526; padding: 8px; }
+.editor-pane { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+.segment-row { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #333; font-size: 13px; }
+.segment-row.active { background: #094771; }
+.segment-editor { display: flex; flex-direction: column; gap: 12px; }
+.source-cell { padding: 12px; background: #2d2d2d; border: 1px solid #444; border-radius: 4px; line-height: 1.6; }
+.target-cell textarea { width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #007acc; border-radius: 4px; padding: 12px; font-size: 14px; line-height: 1.6; resize: vertical; }
+.editor-actions { display: flex; gap: 12px; align-items: center; }
+button { background: #007acc; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.tm-panel, .tb-panel { padding: 12px; margin-bottom: 16px; }
+.tm-panel h3, .tb-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 8px; }
+.tm-match { padding: 8px; border: 1px solid #333; border-radius: 4px; margin-bottom: 6px; cursor: pointer; font-size: 12px; }
+.tm-match:hover { background: #2d2d2d; }
+.match-score { font-weight: bold; color: #4ec9b0; margin-bottom: 4px; }
+.tb-entry { display: flex; gap: 8px; align-items: center; padding: 6px; font-size: 12px; border-bottom: 1px solid #333; }
+.tb-entry.forbidden { border-left: 3px solid #f44; }
+.forbidden-badge { background: #f44; color: white; border-radius: 3px; padding: 1px 4px; font-size: 10px; }
+.project-view { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; }
+.open-file-btn { padding: 12px 32px; font-size: 16px; }
