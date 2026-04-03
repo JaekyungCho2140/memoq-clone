@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams } from "../types";
+import type { Project, Segment, TmEntry, TmMatch, TbEntry, TmSearchParams, TbLookupParams, QaIssue } from "../types";
 
 export async function parseFile(path: string): Promise<Project> {
   return invoke<Project>("parse_file", { path });
@@ -64,4 +64,8 @@ export async function addToTb(
   forbidden: boolean,
 ): Promise<TbEntry> {
   return invoke<TbEntry>("tb_add", { tbId, sourceTerm, targetTerm, sourceLang, targetLang, notes, forbidden });
+}
+
+export async function runQaCheck(projectId: string, tbId?: string): Promise<QaIssue[]> {
+  return invoke<QaIssue[]>("run_qa_check", { projectId, tbId: tbId ?? null });
 }

@@ -62,3 +62,19 @@ export interface TbLookupParams {
   term: string;
   sourceLang: string;
 }
+
+export type QaSeverity = "Error" | "Warning";
+
+export type QaCheckType =
+  | "TagMismatch"
+  | "NumberMismatch"
+  | "Untranslated"
+  | "ForbiddenTerm"
+  | "SourceEqualsTarget";
+
+export interface QaIssue {
+  segment_id: string;
+  check_type: QaCheckType;
+  severity: QaSeverity;
+  message: string;
+}
