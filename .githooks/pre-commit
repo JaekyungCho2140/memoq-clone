@@ -1,0 +1,18 @@
+#!/bin/sh
+# Pre-commit hook: cargo fmt 포맷 검사
+# 커밋 전에 Rust 코드 포맷이 올바른지 확인합니다.
+
+set -e
+
+# src-tauri 디렉토리가 있는 경우에만 실행
+if [ -d "src-tauri" ]; then
+  echo "🔍 cargo fmt 포맷 검사 중..."
+  if ! cargo fmt --manifest-path src-tauri/Cargo.toml -- --check 2>&1; then
+    echo ""
+    echo "❌ ERROR: cargo fmt 포맷이 적용되지 않았습니다."
+    echo "   커밋 전에 다음 명령어를 실행하세요:"
+    echo "   cargo fmt --manifest-path src-tauri/Cargo.toml"
+    exit 1
+  fi
+  echo "✅ cargo fmt 검사 통과"
+fi

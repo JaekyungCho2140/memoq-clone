@@ -74,10 +74,7 @@ fn create_sample_docx(dir: &TempDir) -> PathBuf {
 
 #[test]
 fn test_xliff_parse_roundtrip() {
-    let fixture_path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/sample.xliff"
-    );
+    let fixture_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/sample.xliff");
 
     // 1) 파싱
     let project = parser::parse(fixture_path).expect("XLIFF 파싱 실패");
@@ -104,8 +101,14 @@ fn test_xliff_parse_roundtrip() {
     let exported = parser::parse(output_str).expect("내보낸 XLIFF 재파싱 실패");
     assert_eq!(exported.segments.len(), 3);
     assert_eq!(exported.segments[0].target, "안녕, 세계!");
-    assert_eq!(exported.segments[1].target, "이것은 번역 메모리 테스트입니다.");
-    assert_eq!(exported.segments[2].target, "퍼지 매칭은 유사한 문장에 유용합니다.");
+    assert_eq!(
+        exported.segments[1].target,
+        "이것은 번역 메모리 테스트입니다."
+    );
+    assert_eq!(
+        exported.segments[2].target,
+        "퍼지 매칭은 유사한 문장에 유용합니다."
+    );
 }
 
 // ─── Test 2: DOCX parse → target 수정 → export 검증 ─────────────────────────
@@ -121,7 +124,10 @@ fn test_docx_parse_roundtrip() {
     assert_eq!(project.segments.len(), 3, "세그먼트가 3개여야 합니다");
     assert_eq!(project.segments[0].source, "Hello, world!");
     assert_eq!(project.segments[1].source, "This is a DOCX test.");
-    assert_eq!(project.segments[2].source, "Translation memory helps translators.");
+    assert_eq!(
+        project.segments[2].source,
+        "Translation memory helps translators."
+    );
 
     // 2) 타겟 수정
     let mut segments = project.segments.clone();
@@ -144,7 +150,10 @@ fn test_docx_parse_roundtrip() {
         let mut entry = archive.by_name("word/document.xml").unwrap();
         std::io::Read::read_to_string(&mut entry, &mut doc_xml).unwrap();
     }
-    assert!(doc_xml.contains("안녕, 세계!"), "번역된 타겟이 DOCX에 포함되어야 합니다");
+    assert!(
+        doc_xml.contains("안녕, 세계!"),
+        "번역된 타겟이 DOCX에 포함되어야 합니다"
+    );
     assert!(doc_xml.contains("이것은 DOCX 테스트입니다."));
 }
 
@@ -153,8 +162,7 @@ fn test_docx_parse_roundtrip() {
 #[test]
 fn test_tm_full_flow() {
     // 1) TM 생성
-    let tm_id = TmEngine::create("integration-test-tm", "en-US", "ko-KR")
-        .expect("TM 생성 실패");
+    let tm_id = TmEngine::create("integration-test-tm", "en-US", "ko-KR").expect("TM 생성 실패");
 
     // 2) 엔진 열기 & 항목 추가
     let engine = TmEngine::open(&tm_id).expect("TM 열기 실패");
@@ -190,7 +198,7 @@ fn test_tm_full_flow() {
     // 4) fuzzy 매치(>50%) 검증
     let fuzzy_results = engine
         .search(TmSearchParams {
-            query: "Hello world",  // 구두점 없음 — 유사하지만 동일하지 않음
+            query: "Hello world", // 구두점 없음 — 유사하지만 동일하지 않음
             source_lang: "en-US",
             target_lang: "ko-KR",
             min_score: 0.5,
@@ -214,22 +222,43 @@ fn test_tb_full_flow() {
     // 2) 엔진 열기 & 용어 추가
     let engine = TbEngine::open(&tb_id).expect("TB 열기 실패");
     engine
-        .add("translation memory", "번역 메모리", "en-US", "ko-KR", "", false)
+        .add(
+            "translation memory",
+            "번역 메모리",
+            "en-US",
+            "ko-KR",
+            "",
+            false,
+        )
         .expect("TB 용어 추가 실패");
     engine
-        .add("segment", "세그먼트", "en-US", "ko-KR", "CAT tool term", false)
+        .add(
+            "segment",
+            "세그먼트",
+            "en-US",
+            "ko-KR",
+            "CAT tool term",
+            false,
+        )
         .expect("TB 용어 추가 실패");
     engine
-        .add("deprecated term", "사용 중단 용어", "en-US", "ko-KR", "", true)
+        .add(
+            "deprecated term",
+            "사용 중단 용어",
+            "en-US",
+            "ko-KR",
+            "",
+            true,
+        )
         .expect("TB 금지어 추가 실패");
 
     // 3) 텍스트에서 용어 조회 검증
-    let results = engine
-        .lookup("memory", "en-US")
-        .expect("TB 조회 실패");
+    let results = engine.lookup("memory", "en-US").expect("TB 조회 실패");
     assert!(!results.is_empty(), "용어 조회 결과가 있어야 합니다");
     assert!(
-        results.iter().any(|e| e.source_term == "translation memory"),
+        results
+            .iter()
+            .any(|e| e.source_term == "translation memory"),
         "translation memory 용어가 검색되어야 합니다"
     );
 
@@ -251,18 +280,14 @@ fn test_tb_full_flow() {
 
 #[test]
 fn test_xliff_with_tm_tb() {
-    let fixture_path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/sample.xliff"
-    );
+    let fixture_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/sample.xliff");
 
     // 1) XLIFF 파싱
     let project = parser::parse(fixture_path).expect("XLIFF 파싱 실패");
     assert_eq!(project.segments.len(), 3);
 
     // 2) TM 설정: 기존 번역 사전 추가
-    let tm_id = TmEngine::create("xliff-tm-tb-test-tm", "en-US", "ko-KR")
-        .expect("TM 생성 실패");
+    let tm_id = TmEngine::create("xliff-tm-tb-test-tm", "en-US", "ko-KR").expect("TM 생성 실패");
     let tm = TmEngine::open(&tm_id).expect("TM 열기 실패");
     tm.add("Hello, world!", "안녕, 세계!", "en-US", "ko-KR")
         .expect("TM 항목 추가 실패");
@@ -277,8 +302,15 @@ fn test_xliff_with_tm_tb() {
     // 3) TB 설정
     let tb_id = TbEngine::create("xliff-tm-tb-test-tb").expect("TB 생성 실패");
     let tb = TbEngine::open(&tb_id).expect("TB 열기 실패");
-    tb.add("translation memory", "번역 메모리", "en-US", "ko-KR", "", false)
-        .expect("TB 용어 추가 실패");
+    tb.add(
+        "translation memory",
+        "번역 메모리",
+        "en-US",
+        "ko-KR",
+        "",
+        false,
+    )
+    .expect("TB 용어 추가 실패");
     tb.add("fuzzy matching", "퍼지 매칭", "en-US", "ko-KR", "", false)
         .expect("TB 용어 추가 실패");
 

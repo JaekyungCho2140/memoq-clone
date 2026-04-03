@@ -74,6 +74,21 @@ npm install
 cargo tauri dev
 ```
 
+### Code Formatting
+
+Rust 코드는 커밋 전에 반드시 `cargo fmt`를 실행해야 합니다. CI 파이프라인도 포맷을 검사합니다.
+
+```bash
+# Rust 코드 포맷 적용 (커밋 전 필수)
+cargo fmt --manifest-path src-tauri/Cargo.toml
+
+# 포맷 검사만 (변경 없음)
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+```
+
+pre-commit hook이 자동으로 설정되어 있어 포맷이 적용되지 않은 경우 커밋이 차단됩니다.
+Hook은 `.githooks/pre-commit`에 위치하며 `git config core.hooksPath .githooks`로 활성화됩니다.
+
 ### Test
 
 ```bash
