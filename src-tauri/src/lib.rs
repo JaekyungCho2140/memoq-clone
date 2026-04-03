@@ -1,8 +1,8 @@
 mod commands;
-mod models;
-mod parser;
-mod tb;
-mod tm;
+pub mod models;
+pub mod parser;
+pub mod tb;
+pub mod tm;
 
 use commands::{
     export::{export_file, save_segment},
