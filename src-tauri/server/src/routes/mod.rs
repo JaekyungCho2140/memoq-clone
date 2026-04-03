@@ -1,3 +1,4 @@
+pub mod analytics;
 pub mod files;
 pub mod projects;
 pub mod segments;
@@ -58,6 +59,10 @@ pub fn api_routes(state: AppState) -> Router {
         // TB
         .route("/tb", get(tb::list_tb).post(tb::create_tb))
         .route("/tb/:id", patch(tb::update_tb).delete(tb::delete_tb))
+        // Analytics
+        .route("/analytics/team", get(analytics::team_analytics))
+        .route("/analytics/user/:id", get(analytics::user_analytics))
+        .route("/analytics/project/:id", get(analytics::project_analytics))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state.clone());
 

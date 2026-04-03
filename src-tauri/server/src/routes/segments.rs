@@ -4,6 +4,7 @@ use axum::{
 };
 use chrono::Utc;
 use rusqlite::{params, OptionalExtension};
+use uuid::Uuid;
 
 use crate::{
     app::AppState,
@@ -67,6 +68,9 @@ pub async fn update_segment(
 
     let pool = state.pool.clone();
     let now = Utc::now().to_rfc3339();
+    let user_id = claims.sub.clone();
+    let mt_used = body.mt_used.unwrap_or(false) as i64;
+    let tm_match_score = body.tm_match_score;
 
     let seg = run_db(pool, move |conn| {
         // Verify segment belongs to this project
@@ -98,6 +102,20 @@ pub async fn update_segment(
         conn.execute(
             "UPDATE segments SET target=?1, status=?2, updated_at=?3 WHERE id=?4",
             params![&new_target, &new_status, &now, &seg_id],
+        )
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+        // Determine action label: "confirm" if status becomes "confirmed", else "save"
+        let action = if new_status == "confirmed" { "confirm" } else { "save" };
+        let event_id = Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO translation_events
+             (id, user_id, project_id, segment_id, action, mt_used, tm_match_score, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &event_id, &user_id, &project_id, &seg_id,
+                action, mt_used, tm_match_score, &now
+            ],
         )
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 

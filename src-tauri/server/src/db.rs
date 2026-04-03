@@ -113,6 +113,20 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
             owner_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
             created_at  TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS translation_events (
+            id             TEXT PRIMARY KEY,
+            user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            segment_id     TEXT NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
+            action         TEXT NOT NULL,
+            mt_used        INTEGER NOT NULL DEFAULT 0,
+            tm_match_score INTEGER,
+            timestamp      TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tevents_project ON translation_events(project_id, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_tevents_user    ON translation_events(user_id, timestamp);
         "#,
     )
 }

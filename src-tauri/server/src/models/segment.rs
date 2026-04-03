@@ -48,4 +48,8 @@ pub struct Segment {
 pub struct UpdateSegmentRequest {
     pub target: Option<String>,
     pub status: Option<String>,
+    /// Whether machine translation was used for this edit.
+    pub mt_used: Option<bool>,
+    /// TM match score 0–100, if a TM match was applied.
+    pub tm_match_score: Option<i64>,
 }
