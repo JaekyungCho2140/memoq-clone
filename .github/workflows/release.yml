@@ -1,28 +1,37 @@
 name: Release
 
+# Triggers on `v*` tag push — e.g. `git tag v1.2.3 && git push --tags`
 on:
   push:
     tags:
       - "v*"
 
+permissions:
+  contents: write   # create GitHub Releases and upload assets
+
 jobs:
-  release:
-    permissions:
-      contents: write
+  # ── Build cross-platform installers ─────────────────────────────────────
+  build:
+    name: Build (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
         include:
+          # macOS — universal binary (Intel + Apple Silicon) + DMG
           - platform: macos-latest
             args: "--target universal-apple-darwin"
             rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          # Windows — NSIS .exe installer
+          - platform: windows-latest
+            args: "--bundles nsis"
+            rust-targets: ""
+          # Linux — AppImage (optional, included for completeness)
           - platform: ubuntu-22.04
             args: ""
             rust-targets: ""
-          - platform: windows-latest
-            args: ""
-            rust-targets: ""
+
     runs-on: ${{ matrix.platform }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +42,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust-targets }}
+          targets: ${{ matrix.rust-targets }},wasm32-wasip1
 
-      - name: Install Linux dependencies
+      - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
@@ -53,32 +62,79 @@ jobs:
 
       - run: npm ci
 
-      - name: Build and release
+      # Build example WASM plugin so it is bundled as a demo
+      - name: Build WASM example plugin
+        shell: bash
+        run: |
+          cargo build \
+            --manifest-path src-tauri/Cargo.toml \
+            --target wasm32-wasip1 \
+            --release \
+            -p example-mt-provider
+          mkdir -p src-tauri/plugins/example-mt-provider/dist
+          cp src-tauri/target/wasm32-wasip1/release/example_mt_provider.wasm \
+             src-tauri/plugins/example-mt-provider/dist/plugin.wasm
+
+      # ── Tauri build + sign + upload to GitHub Releases ──────────────────
+      - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing (optional — set these secrets to enable notarization)
+
+          # ── Tauri Updater signing ────────────────────────────────────────
+          # To enable in-app updates, generate a keypair and add secrets:
+          #   npx tauri signer generate -w ~/.tauri/memoqclone.key
+          # Then:
+          #   TAURI_SIGNING_PRIVATE_KEY  → GitHub secret (contents of .key file)
+          #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD → passphrase (empty string if none)
+          #   TAURI_SIGNING_PUBLIC_KEY   → copy into tauri.conf.json plugins.updater.pubkey
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+          # ── macOS code signing + notarization ───────────────────────────
+          # Uncomment and set these secrets to enable Apple notarization:
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "memoQ Clone ${{ github.ref_name }}"
           releaseBody: |
-            ## What's Changed
+            ## memoQ Clone ${{ github.ref_name }}
 
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for the full release notes.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for release notes.
 
             ## Downloads
 
-            | Platform | File |
-            |----------|------|
-            | macOS (Universal) | `memoQ-Clone_*.dmg` |
-            | Windows | `memoQ-Clone_*.msi` |
-            | Linux | `memoQ-Clone_*.AppImage` |
+            | Platform | Installer | Notes |
+            |----------|-----------|-------|
+            | Windows  | `memoQ-Clone_*_x64-setup.exe` | NSIS installer |
+            | macOS    | `memoQ-Clone_*_universal.dmg` | Universal (Intel + Apple Silicon) |
+            | Linux    | `memoQ-Clone_*_amd64.AppImage` | Portable |
+
+            ## Auto-update
+
+            If you have an older version installed, the app will prompt you to update automatically.
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           args: ${{ matrix.args }}
+
+  # ── Publish the `latest.json` updater manifest ──────────────────────────
+  # After all platform builds succeed, publish the release (draft → published).
+  # The tauri-action creates a `latest.json` alongside each platform artifact.
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote draft release to published
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
