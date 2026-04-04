@@ -6,7 +6,7 @@ import type { TbEntry } from "../../types";
 
 export function TbPanel() {
   const { project, currentSegmentIndex } = useProjectStore();
-  const { activeTbId, setActiveTbId } = useTbStore();
+  const { activeTbId, setActiveTbId, setCurrentTbEntries } = useTbStore();
   const [entries, setEntries] = useState<TbEntry[]>([]);
   const [creating, setCreating] = useState(false);
   const [tbName, setTbName] = useState("");
@@ -38,8 +38,14 @@ export function TbPanel() {
       term: currentSegment.source,
       sourceLang: project.sourceLang,
     })
-      .then(setEntries)
-      .catch(() => setEntries([]));
+      .then((results) => {
+        setEntries(results);
+        setCurrentTbEntries(results);
+      })
+      .catch(() => {
+        setEntries([]);
+        setCurrentTbEntries([]);
+      });
   }, [activeTbId, currentSegment?.id, project?.id]);
 
   const handleCreateTb = async () => {

@@ -22,9 +22,11 @@ export function Toolbar() {
 
   if (!project) return null;
 
-  const translated = project.segments.filter((s) => s.status !== "untranslated").length;
   const total = project.segments.length;
-  const progress = total > 0 ? Math.round((translated / total) * 100) : 0;
+  const confirmed = project.segments.filter((s) => s.status === "confirmed").length;
+  const translated = project.segments.filter((s) => s.status !== "untranslated").length;
+  const confirmedPct = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+  const translatedPct = total > 0 ? Math.round((translated / total) * 100) : 0;
   const errors = errorCount();
 
   const handleRunQa = async () => {
@@ -83,7 +85,7 @@ export function Toolbar() {
         <div className="toolbar-left">
           <span className="project-name" title={project.sourcePath}>{project.name}</span>
           <span className="lang-pair">{project.sourceLang} → {project.targetLang}</span>
-          <span className="progress-badge">{translated}/{total} ({progress}%)</span>
+          <span className="progress-badge">{confirmed}/{total} 확정 ({confirmedPct}%)</span>
           {errors > 0 && (
             <span className="qa-error-badge">{errors}개 오류</span>
           )}
@@ -96,6 +98,20 @@ export function Toolbar() {
           <button className="btn-toolbar btn-secondary" onClick={backToDashboard} title="대시보드로 돌아가기">← 대시보드</button>
           <button className="btn-toolbar btn-danger" onClick={closeProject}>닫기</button>
         </div>
+      </div>
+
+      {/* Translation progress bar — sits just below the toolbar */}
+      <div className="translation-progress-bar" role="progressbar" aria-valuenow={confirmedPct} aria-valuemin={0} aria-valuemax={100} aria-label="번역 진행률">
+        <div
+          className="translation-progress-fill translation-progress-translated"
+          style={{ width: `${translatedPct}%` }}
+          title={`번역됨 ${translated}/${total} (${translatedPct}%)`}
+        />
+        <div
+          className="translation-progress-fill translation-progress-confirmed"
+          style={{ width: `${confirmedPct}%` }}
+          title={`확정 ${confirmed}/${total} (${confirmedPct}%)`}
+        />
       </div>
 
       {showExportWarning && (

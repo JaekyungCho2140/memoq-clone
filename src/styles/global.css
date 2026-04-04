@@ -592,3 +592,98 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .plugin-no-params { font-size: 12px; color: #888; }
 .plugin-param-row { display: flex; flex-direction: column; gap: 3px; }
 .plugin-param-label { font-size: 11px; color: #888; }
+
+/* ── Translation Progress Bar ─────────────────────────── */
+.translation-progress-bar {
+  position: relative;
+  height: 4px;
+  background: #1e1e1e;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.translation-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.translation-progress-translated { background: #2e7d32; }
+.translation-progress-confirmed  { background: #1565c0; }
+
+/* ── TB Highlight in source cell ─────────────────────── */
+.source-cell mark.tb-highlight {
+  background: rgba(255, 213, 79, 0.25);
+  color: #ffd54f;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.tb-terms-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #333;
+}
+.tb-term-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #1a2a1a;
+  border: 1px solid #2e4a2e;
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 11px;
+}
+.tb-chip-source { color: #ffd54f; }
+.tb-chip-arrow  { color: #555; }
+.tb-chip-target { color: #4ec9b0; }
+
+/* ── TM Quick-Insert Bar ─────────────────────────────── */
+.tm-quick-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+}
+.tm-quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-align: left;
+  color: #d4d4d4;
+  font-size: 11px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tm-quick-btn:hover:not(:disabled) { background: #2d2d2d; border-color: #444; }
+.tm-quick-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tm-quick-score { min-width: 32px; color: #4ec9b0; font-weight: 600; }
+.tm-quick-target { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-quick-kbd {
+  font-size: 10px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 1px 4px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* ── Editor Error Banners ────────────────────────────── */
+.editor-error-banner {
+  background: #3a1a1a;
+  border: 1px solid #6a2a2a;
+  border-radius: 4px;
+  color: #f48771;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.editor-save-error { border-color: #8a4a1a; background: #3a2a1a; color: #e8a060; }

@@ -9,7 +9,7 @@ type ActiveTab = "tm" | "mt" | "livedocs";
 
 export function TmPanel() {
   const { project, currentSegmentIndex, updateSegment } = useProjectStore();
-  const { activeTmId, setActiveTmId } = useTmStore();
+  const { activeTmId, setActiveTmId, setCurrentTmMatches } = useTmStore();
   const { provider, apiKey, cacheResult, getCached } = useMtStore();
   const [matches, setMatches] = useState<TmMatch[]>([]);
   const [creating, setCreating] = useState(false);
@@ -46,8 +46,14 @@ export function TmPanel() {
       targetLang: project.targetLang,
       minScore: 0.5,
     })
-      .then(setMatches)
-      .catch(() => setMatches([]));
+      .then((results) => {
+        setMatches(results);
+        setCurrentTmMatches(results);
+      })
+      .catch(() => {
+        setMatches([]);
+        setCurrentTmMatches([]);
+      });
   }, [activeTmId, currentSegment?.id, project?.id]);
 
   // Load cached MT result when segment changes
