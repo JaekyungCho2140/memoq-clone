@@ -4,6 +4,7 @@ pub mod files;
 pub mod projects;
 pub mod segments;
 pub mod tb;
+pub mod term_extraction;
 pub mod tm;
 pub mod vendor;
 
@@ -68,6 +69,15 @@ pub fn api_routes(state: AppState) -> Router {
         // Alignment
         .route("/alignment/align", post(alignment::align_documents))
         .route("/alignment/confirm", post(alignment::confirm_alignment))
+        // Term extraction
+        .route(
+            "/term-extraction/extract",
+            post(term_extraction::extract_terms_handler),
+        )
+        .route(
+            "/term-extraction/add-to-tb",
+            post(term_extraction::add_terms_to_tb),
+        )
         // Vendor portal
         .route(
             "/projects/:projectId/assignments",

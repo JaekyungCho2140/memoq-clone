@@ -8,4 +8,5 @@ pub mod middleware;
 pub mod models;
 pub mod parser;
 pub mod routes;
+pub mod term_extraction;
 pub mod ws;
