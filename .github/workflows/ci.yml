@@ -81,7 +81,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          # wasm32-wasip1 required for WASM plugin validation on Windows (CTO review: AFR-58)
+          targets: x86_64-pc-windows-msvc,wasm32-wasip1
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -97,3 +98,15 @@ jobs:
       # (e.g., path separator issues, file locking, SQLite behaviour).
       - name: Test (Windows)
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # Validate that the WASM plugin target compiles correctly on a Windows runner.
+      # wasm32-wasip1 is host-independent (produces .wasm), but the Rust toolchain
+      # and build environment still differ per OS — confirming it builds on Windows
+      # ensures plugin authors can develop on any platform.
+      - name: Build example WASM plugin (Windows)
+        run: >
+          cargo build
+          --manifest-path src-tauri/Cargo.toml
+          --target wasm32-wasip1
+          --release
+          -p example-mt-provider
