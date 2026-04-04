@@ -11,7 +11,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Offline / Network-Disconnected Mode", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
   });
 

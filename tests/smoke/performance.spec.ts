@@ -18,7 +18,7 @@ const FIXTURE_LARGE = path.join(__dirname, "fixtures", "500-segments.xliff");
 test.describe("Performance Baselines", () => {
   test("app startup time is below 5 seconds", async ({ page }) => {
     const start = Date.now();
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
     const elapsed = Date.now() - start;
 
@@ -31,7 +31,7 @@ test.describe("Performance Baselines", () => {
   });
 
   test("loading a 500-segment XLIFF file completes in < 3 seconds", async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
 
     // TODO: trigger file open with FIXTURE_LARGE and measure time until
@@ -52,7 +52,7 @@ test.describe("Performance Baselines", () => {
   });
 
   test("no visible memory leak during short editing session", async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
 
     // TODO: record JS heap size before and after a 30-second editing simulation;

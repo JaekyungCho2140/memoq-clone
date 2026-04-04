@@ -13,7 +13,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Plugin System", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
   });
 
@@ -34,7 +34,7 @@ test.describe("Plugin System", () => {
 
 test.describe("Vendor Portal", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
   });
 

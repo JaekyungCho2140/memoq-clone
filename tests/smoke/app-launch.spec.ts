@@ -19,7 +19,7 @@ test.describe("App Launch", () => {
   test("main window renders without crash", async ({ page }) => {
     // TODO: replace with actual app URL / tauri webview endpoint once
     //       the Playwright smoke project is configured in playwright.config.ts
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
 
     // The root element must exist — indicates the React app mounted
     await expect(page.locator("#root")).toBeAttached({ timeout: 10_000 });
@@ -31,7 +31,7 @@ test.describe("App Launch", () => {
       if (msg.type() === "error") errors.push(msg.text());
     });
 
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     // Give the app time to fully initialize
     await page.waitForTimeout(2_000);
 
@@ -39,7 +39,7 @@ test.describe("App Launch", () => {
   });
 
   test("main window reaches correct default size", async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
 
     const viewport = page.viewportSize();
     // Default window size defined in tauri.conf.json should be 1280×800
@@ -48,7 +48,7 @@ test.describe("App Launch", () => {
   });
 
   test("app title is visible", async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
 
     // The window / document title should include the product name
     const title = await page.title();

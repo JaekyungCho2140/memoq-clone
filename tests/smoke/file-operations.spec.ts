@@ -16,7 +16,7 @@ const FIXTURES = path.join(__dirname, "fixtures");
 
 test.describe("File Import / Export", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(process.env.SMOKE_APP_URL ?? "tauri://localhost");
+    await page.goto("/");
     await page.locator("#root").waitFor({ state: "attached", timeout: 10_000 });
   });
 
