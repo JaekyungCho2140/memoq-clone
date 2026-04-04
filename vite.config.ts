@@ -21,11 +21,11 @@ export default defineConfig(async () => ({
   test: {
     environment: "node",
     globals: true,
+    exclude: ["tests/smoke/**", "node_modules/**"],
     coverage: {
       provider: "v8",
       include: [
         "src/stores/**/*.ts",
-        "src/tauri/**/*.ts",
         "src/adapters/**/*.ts",
         "src/hooks/**/*.ts",
         "src/components/TmPanel/**/*.tsx",
@@ -34,6 +34,12 @@ export default defineConfig(async () => ({
       exclude: [
         "**/__tests__/**",
         "**/*.test.{ts,tsx}",
+        // Platform-specific adapter implementations: these call platform APIs
+        // (@tauri-apps/api, browser fetch/WebSocket) that require either the
+        // native Tauri runtime or a live REST server. Verified via E2E/smoke tests.
+        "src/tauri/**/*.ts",
+        "src/adapters/tauri.ts",
+        "src/adapters/web.ts",
       ],
       thresholds: {
         statements: 80,
