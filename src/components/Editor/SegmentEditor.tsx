@@ -199,12 +199,13 @@ export function SegmentEditor() {
     textareaRef.current?.focus();
   };
 
-  const applyTmMatch = async (target: string) => {
+  const applyTmMatch = async (target: string, score: number) => {
     if (isLockedByOther) return;
-    updateSegment(segment.id, { target, status: "draft" });
-    wsUpdateSegment(segment.id, target, "draft");
+    const status: SegmentStatus = score >= 1.0 ? "translated" : "draft";
+    updateSegment(segment.id, { target, status });
+    wsUpdateSegment(segment.id, target, status);
     try {
-      await adapter.saveSegment(project.id, segment.id, segment.source, target, "draft", segment.order);
+      await adapter.saveSegment(project.id, segment.id, segment.source, target, status, segment.order);
     } catch {
       showSaveError("TM 매치 저장 실패. 네트워크 연결을 확인하세요.");
     }
@@ -238,7 +239,7 @@ export function SegmentEditor() {
       const idx = parseInt(e.key, 10) - 1;
       const match = currentTmMatches[idx];
       if (match) {
-        await applyTmMatch(match.target);
+        await applyTmMatch(match.target, match.score);
       }
     }
   };
@@ -281,7 +282,7 @@ export function SegmentEditor() {
               key={i}
               className="tm-quick-btn"
               title={`Ctrl+${i + 1}: ${m.target}`}
-              onClick={() => applyTmMatch(m.target)}
+              onClick={() => applyTmMatch(m.target, m.score)}
               disabled={isLockedByOther}
             >
               <span className="tm-quick-score">{Math.round(m.score * 100)}%</span>
@@ -295,6 +296,7 @@ export function SegmentEditor() {
       <div className="target-cell">
         <textarea
           ref={textareaRef}
+          data-testid="segment-editor-target"
           value={segment.target}
           onChange={(e) => handleTargetChange(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -306,7 +308,11 @@ export function SegmentEditor() {
       </div>
 
       <div className="editor-actions">
-        <button onClick={handleConfirm} disabled={segment.status === "confirmed" || isLockedByOther}>
+        <button
+          data-testid="confirm-btn"
+          onClick={handleConfirm}
+          disabled={segment.status === "confirmed" || isLockedByOther}
+        >
           확정 (Ctrl+Enter)
         </button>
         <button
@@ -317,7 +323,11 @@ export function SegmentEditor() {
         >
           {mtLoading ? <span className="mt-spinner" /> : "MT (Ctrl+M)"}
         </button>
-        <span className={`segment-status status-${segment.status}`}>
+        <span
+          className={`segment-status status-${segment.status}`}
+          data-testid="segment-status"
+          data-status={segment.status}
+        >
           {STATUS_LABEL[segment.status]}
         </span>
       </div>

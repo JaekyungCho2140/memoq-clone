@@ -114,7 +114,11 @@ function VendorCard({ vendor, assignments }: VendorCardProps) {
   );
 }
 
-export function AdminVendorDashboard() {
+interface AdminVendorDashboardProps {
+  onClose?: () => void;
+}
+
+export function AdminVendorDashboard({ onClose }: AdminVendorDashboardProps) {
   const {
     allAssignments,
     vendors,
@@ -141,7 +145,14 @@ export function AdminVendorDashboard() {
 
   return (
     <div className="admin-vendor-dashboard">
-      <h2 className="admin-section-title">벤더 현황 대시보드</h2>
+      <div className="admin-vendor-header">
+        <h2 className="admin-section-title">벤더 현황 대시보드</h2>
+        {onClose && (
+          <button className="btn-small btn-outline" onClick={onClose}>
+            ← 돌아가기
+          </button>
+        )}
+      </div>
 
       <div className="admin-summary-bar">
         <div className="summary-card">

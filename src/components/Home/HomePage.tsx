@@ -4,9 +4,10 @@ import { useProjectStore } from "../../stores/projectStore";
 
 interface HomePageProps {
   onOpenAlignment?: () => void;
+  onOpenVendorManagement?: () => void;
 }
 
-export function HomePage({ onOpenAlignment }: HomePageProps) {
+export function HomePage({ onOpenAlignment, onOpenVendorManagement }: HomePageProps) {
   const [recentProjects, setRecentProjects] = useState<string[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const setProject = useProjectStore((s) => s.setProject);
@@ -79,6 +80,14 @@ export function HomePage({ onOpenAlignment }: HomePageProps) {
             <span className="home-action-icon">🔗</span>
             <span className="home-action-label">TM 정렬</span>
             <span className="home-action-desc">소스·타겟 파일을 정렬하여 TM 생성</span>
+          </button>
+        )}
+
+        {onOpenVendorManagement && (
+          <button className="home-action-btn home-action-secondary" onClick={onOpenVendorManagement}>
+            <span className="home-action-icon">👥</span>
+            <span className="home-action-label">벤더 관리</span>
+            <span className="home-action-desc">번역사 할당 및 진행 현황 관리</span>
           </button>
         )}
       </div>

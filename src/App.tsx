@@ -8,6 +8,7 @@ import { HomePage } from "./components/Home/HomePage";
 import { ProjectDashboard } from "./components/ProjectDashboard/ProjectDashboard";
 import { EditorLayout } from "./components/Layout/EditorLayout";
 import { VendorDashboard } from "./components/Vendor/VendorDashboard";
+import { AdminVendorDashboard } from "./components/Vendor/AdminVendorDashboard";
 import { VendorEditorLayout } from "./components/Vendor/VendorEditorLayout";
 import { TmAlignmentPage } from "./components/TmAlignment/TmAlignmentPage";
 import { UpdateChecker } from "./components/Updater/UpdateChecker";
@@ -18,6 +19,7 @@ export default function App() {
   const { user, accessToken, rehydrate } = useAuthStore();
   const { activeAssignment } = useVendorStore();
   const [showAlignment, setShowAlignment] = useState(false);
+  const [showVendorMgmt, setShowVendorMgmt] = useState(false);
 
   // In web mode, restore auth session from localStorage on first render
   useEffect(() => {
@@ -36,6 +38,11 @@ export default function App() {
     return <TmAlignmentPage onClose={() => setShowAlignment(false)} />;
   }
 
+  // Admin vendor management page
+  if (!isTauri() && user?.role === "admin" && showVendorMgmt) {
+    return <AdminVendorDashboard onClose={() => setShowVendorMgmt(false)} />;
+  }
+
   // Vendor role: dedicated portal UI
   if (!isTauri() && user?.role === "vendor") {
     if (activeAssignment) return <VendorEditorLayout />;
@@ -44,7 +51,10 @@ export default function App() {
 
   // Admin / Tauri: full app
   const appContent = !project ? (
-    <HomePage onOpenAlignment={() => setShowAlignment(true)} />
+    <HomePage
+      onOpenAlignment={() => setShowAlignment(true)}
+      onOpenVendorManagement={!isTauri() && user?.role === "admin" ? () => setShowVendorMgmt(true) : undefined}
+    />
   ) : projectView === "dashboard" ? (
     <ProjectDashboard />
   ) : (
