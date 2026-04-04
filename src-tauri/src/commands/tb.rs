@@ -1,10 +1,14 @@
+use crate::error::AppError;
 use crate::models::TbEntry;
 use crate::tb::TbEngine;
 use tauri::command;
 
 #[command]
-pub async fn tb_create(name: String) -> Result<String, String> {
-    TbEngine::create(&name).map_err(|e| e.to_string())
+pub async fn tb_create(name: String) -> Result<String, AppError> {
+    if name.trim().is_empty() {
+        return Err(AppError::Validation("TB name must not be empty".into()));
+    }
+    TbEngine::create(&name).map_err(|e| AppError::storage(e))
 }
 
 #[command]
@@ -16,8 +20,14 @@ pub async fn tb_add(
     target_lang: String,
     notes: String,
     forbidden: bool,
-) -> Result<TbEntry, String> {
-    let engine = TbEngine::open(&tb_id).map_err(|e| e.to_string())?;
+) -> Result<TbEntry, AppError> {
+    if tb_id.trim().is_empty() {
+        return Err(AppError::Validation("TB ID must not be empty".into()));
+    }
+    if source_term.trim().is_empty() {
+        return Err(AppError::Validation("source term must not be empty".into()));
+    }
+    let engine = TbEngine::open(&tb_id).map_err(|e| AppError::storage(e))?;
     engine
         .add(
             &source_term,
@@ -27,7 +37,7 @@ pub async fn tb_add(
             &notes,
             forbidden,
         )
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::storage(e))
 }
 
 #[command]
@@ -35,9 +45,16 @@ pub async fn tb_lookup(
     tb_id: String,
     term: String,
     source_lang: String,
-) -> Result<Vec<TbEntry>, String> {
-    let engine = TbEngine::open(&tb_id).map_err(|e| e.to_string())?;
+) -> Result<Vec<TbEntry>, AppError> {
+    if tb_id.trim().is_empty() {
+        return Err(AppError::Validation("TB ID must not be empty".into()));
+    }
+    // Empty term lookup returns no entries — consistent with editor UX.
+    if term.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    let engine = TbEngine::open(&tb_id).map_err(|e| AppError::storage(e))?;
     engine
         .lookup(&term, &source_lang)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::storage(e))
 }

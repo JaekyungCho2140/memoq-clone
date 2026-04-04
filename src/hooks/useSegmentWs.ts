@@ -15,6 +15,11 @@
  *  - unlockSegment(id) → send Unlock message
  *  - updateSegment(id, target, status) → send Update message
  *
+ * Reconnect strategy (non-intentional disconnects):
+ *  - Exponential backoff: 1s → 2s → 4s → … up to 30s cap
+ *  - Max 8 retries before giving up and setting status to "disconnected"
+ *  - Token expiry (code 4001): refresh token first, then reconnect (resets counter)
+ *
  * Only runs in web mode (window.__TAURI__ absent).
  */
 
@@ -23,6 +28,15 @@ import { isTauri, projectWsUrl } from "../adapters";
 import { useWsStore } from "../stores/wsStore";
 import { useProjectStore } from "../stores/projectStore";
 import { useAuthStore, tokenSecondsRemaining } from "../stores/authStore";
+
+const MAX_RECONNECT_ATTEMPTS = 8;
+const BASE_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
+
+/** Compute exponential back-off delay for a given attempt (0-indexed). */
+function reconnectDelay(attempt: number): number {
+  return Math.min(BASE_RECONNECT_DELAY_MS * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
+}
 
 interface ServerMsgLock {
   type: "segment:lock";
@@ -55,6 +69,10 @@ interface UseSegmentWsReturn {
 
 export function useSegmentWs(projectId: string | null): UseSegmentWsReturn {
   const wsRef = useRef<WebSocket | null>(null);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
   const { setLock, clearLock, setStatus, reset } = useWsStore();
   const updateSegmentInStore = useProjectStore((s) => s.updateSegment);
   const { accessToken, refresh } = useAuthStore();
@@ -65,17 +83,40 @@ export function useSegmentWs(projectId: string | null): UseSegmentWsReturn {
     if (!projectId) return;
     if (!accessToken) return;
 
-    const connect = () => {
+    isMountedRef.current = true;
+
+    const clearRetryTimer = () => {
+      if (retryTimerRef.current !== null) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = (attempt: number) => {
+      if (!isMountedRef.current) return;
+      if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+        setStatus("disconnected");
+        return;
+      }
+      const delay = reconnectDelay(attempt);
+      retryTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) connect(attempt);
+      }, delay);
+    };
+
+    const connect = (attempt = 0) => {
+      if (!isMountedRef.current) return;
       setStatus("connecting");
       const url = projectWsUrl(projectId);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        retryCountRef.current = 0;
         setStatus("connected");
       };
 
-      ws.onmessage = async (evt) => {
+      ws.onmessage = (evt) => {
         let msg: ServerMsg;
         try {
           msg = JSON.parse(evt.data as string) as ServerMsg;
@@ -105,29 +146,43 @@ export function useSegmentWs(projectId: string | null): UseSegmentWsReturn {
 
       ws.onclose = async (evt) => {
         wsRef.current = null;
-        // Code 4001 = token expired — try refresh then reconnect
+
+        // Intentional unmount close — do not reconnect
+        if (evt.code === 1000) return;
+
+        // Token expired — refresh first, then reconnect (reset retry counter)
         if (evt.code === 4001) {
           const ok = await refresh();
-          if (ok) {
-            setTimeout(connect, 200);
+          if (ok && isMountedRef.current) {
+            retryCountRef.current = 0;
+            scheduleReconnect(0);
             return;
           }
+          setStatus("disconnected");
+          return;
         }
-        setStatus("disconnected");
+
+        // Network drop or server-side close — exponential back-off
+        const nextAttempt = attempt + 1;
+        retryCountRef.current = nextAttempt;
+        scheduleReconnect(nextAttempt);
       };
     };
 
     // Pre-emptive refresh: if token expires within 5 min, refresh first
     const secondsLeft = tokenSecondsRemaining(accessToken);
     if (secondsLeft < 300) {
-      refresh().then(connect).catch(connect);
+      refresh().then(() => connect(0)).catch(() => connect(0));
     } else {
-      connect();
+      connect(0);
     }
 
     return () => {
+      isMountedRef.current = false;
+      clearRetryTimer();
       wsRef.current?.close(1000, "unmount");
       wsRef.current = null;
+      retryCountRef.current = 0;
       reset();
     };
   }, [projectId, accessToken]);
@@ -156,3 +211,6 @@ export function useSegmentWs(projectId: string | null): UseSegmentWsReturn {
 
   return { lockSegment, unlockSegment, updateSegment };
 }
+
+/** Exported for unit testing only. */
+export { reconnectDelay, MAX_RECONNECT_ATTEMPTS };
