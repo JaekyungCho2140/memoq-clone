@@ -126,14 +126,14 @@ let OriginalWebSocket: typeof WebSocket;
 
 beforeEach(() => {
   MockWebSocket.instances = [];
-  OriginalWebSocket = global.WebSocket;
-  (global as unknown as Record<string, unknown>).WebSocket = MockWebSocket;
+  OriginalWebSocket = globalThis.WebSocket;
+  (globalThis as unknown as Record<string, unknown>).WebSocket = MockWebSocket;
   vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(tokenSecondsRemaining).mockReturnValue(3600);
 });
 
 afterEach(() => {
-  (global as unknown as Record<string, unknown>).WebSocket = OriginalWebSocket;
+  (globalThis as unknown as Record<string, unknown>).WebSocket = OriginalWebSocket;
   vi.clearAllMocks();
   delete (window as unknown as Record<string, unknown>).__TAURI__;
 });

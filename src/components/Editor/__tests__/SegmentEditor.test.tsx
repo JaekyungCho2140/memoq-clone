@@ -51,7 +51,7 @@ const mockProject: Project = {
 function resetStores() {
   useProjectStore.setState({ project: null, currentSegmentIndex: 0, projectView: "editor" });
   useMtStore.setState({ provider: "deepl", apiKey: "", cache: {} });
-  useWsStore.setState({ locks: {}, connected: false });
+  useWsStore.setState({ locks: {}, status: "disconnected" });
   useAuthStore.setState({ user: { id: "u1", username: "user1", role: "admin" }, accessToken: null, refreshToken: null, isLoading: false, error: null });
   useTmStore.setState({ activeTmId: null, currentTmMatches: [] });
   useTbStore.setState({ activeTbId: null, currentTbEntries: [] });
@@ -93,7 +93,7 @@ describe("SegmentEditor", () => {
     useProjectStore.setState({ project: mockProject, currentSegmentIndex: 0 });
     useWsStore.setState({
       locks: { "seg-1": { userId: "other-user", username: "홍길동" } },
-      connected: true,
+      status: "connected",
     });
     render(<SegmentEditor />);
     expect(screen.getByRole("status")).toBeInTheDocument();

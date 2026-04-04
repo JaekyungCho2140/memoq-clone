@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ErrorBoundary } from "../../ErrorBoundary";
 
-function BrokenChild() {
+function BrokenChild(): React.ReactNode {
   throw new Error("테스트 에러");
 }
 
@@ -13,11 +14,12 @@ function GoodChild() {
 }
 
 describe("ErrorBoundary", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let consoleSpy: any;
 
   beforeEach(() => {
     // Suppress expected console.error output from React during error boundary tests
-    consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
