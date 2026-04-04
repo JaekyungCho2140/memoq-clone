@@ -171,7 +171,7 @@ async fn handle_ws(
             })
             .collect();
         if let Ok(json) = serde_json::to_string(&ServerMsg::CurrentLocks { locks: current }) {
-            let _ = socket.send(Message::Text(json.into())).await;
+            let _ = socket.send(Message::Text(json)).await;
         }
     }
 
@@ -226,7 +226,7 @@ async fn handle_ws(
                                         })
                                         .unwrap_or_default();
                                         let _ = socket
-                                            .send(Message::Text(err.into()))
+                                            .send(Message::Text(err))
                                             .await;
                                     }
                                     Ok(true) => {
@@ -325,7 +325,7 @@ async fn handle_ws(
             result = rx.recv() => {
                 match result {
                     Ok(json) => {
-                        if socket.send(Message::Text(json.into())).await.is_err() {
+                        if socket.send(Message::Text(json)).await.is_err() {
                             break;
                         }
                     }

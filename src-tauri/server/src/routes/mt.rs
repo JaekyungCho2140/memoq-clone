@@ -50,6 +50,7 @@ struct GoogleData {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GoogleTranslation {
+    #[allow(dead_code)]
     translated_text: String,
 }
 

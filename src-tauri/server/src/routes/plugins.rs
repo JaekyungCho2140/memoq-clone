@@ -56,6 +56,7 @@ pub struct UpdatePluginRequest {
 
 // ── DB 행 → Plugin 변환 헬퍼 ──────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn row_to_plugin(
     id: String,
     name: String,
@@ -182,6 +183,7 @@ pub async fn update_plugin(
 
     let plugin = run_db(pool, move |conn| {
         // 존재 여부 및 소유자 확인
+        #[allow(clippy::type_complexity)]
         let existing: Option<(
             String,
             String,

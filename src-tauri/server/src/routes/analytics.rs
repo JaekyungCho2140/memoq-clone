@@ -26,6 +26,7 @@ pub struct AnalyticsQuery {
 }
 
 impl AnalyticsQuery {
+    #[allow(clippy::wrong_self_convention)]
     fn from_clause(&self) -> String {
         self.from
             .clone()

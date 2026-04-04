@@ -114,7 +114,7 @@ fn c_value_scores(ngram_counts: &HashMap<String, u32>) -> HashMap<String, f64> {
         let ngram_len = phrase.split_whitespace().count() as f64;
 
         // For every shorter phrase that is a substring of this phrase, record penalty
-        for (shorter, _) in ngram_counts {
+        for shorter in ngram_counts.keys() {
             if shorter.len() < phrase.len() && phrase.contains(shorter.as_str()) {
                 *penalty_sum.entry(shorter.to_string()).or_insert(0.0) += *freq as f64;
                 *penalty_count.entry(shorter.to_string()).or_insert(0) += 1;

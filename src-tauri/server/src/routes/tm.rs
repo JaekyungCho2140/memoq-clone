@@ -211,6 +211,7 @@ fn fuzzy_score(query: &str, candidate: &str) -> f64 {
     1.0 - (dist as f64 / max_len)
 }
 
+#[allow(clippy::needless_range_loop)]
 fn edit_distance(a: &[char], b: &[char]) -> usize {
     let (m, n) = (a.len(), b.len());
     let mut dp = vec![vec![0usize; n + 1]; m + 1];
