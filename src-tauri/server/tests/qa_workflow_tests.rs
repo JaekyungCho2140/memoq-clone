@@ -181,16 +181,8 @@ async fn qa_scenario2_tm_round_trip() {
     let arr = results.as_array().unwrap();
     assert!(!arr.is_empty(), "exact match should return results");
     assert_eq!(arr[0]["score"], 1.0, "exact match score must be 1.0");
-    // TmSearchResult flattens TmEntry fields — check both source and target
-    let first = &arr[0];
-    eprintln!("[DEBUG] TM search result keys: {:?}", first);
-    // Fields may be at top level (flatten) or nested under "entry"
-    let target_val = if first["target"] != serde_json::Value::Null {
-        first["target"].as_str().unwrap_or("").to_string()
-    } else {
-        first["entry"]["target"].as_str().unwrap_or("").to_string()
-    };
-    assert_eq!(target_val, "빠른 갈색 여우", "TM entry target should match");
+    assert_eq!(arr[0]["source"], "The quick brown fox", "source must be in flattened result");
+    assert_eq!(arr[0]["target"], "빠른 갈색 여우", "target must be in flattened result");
 
     // 2c. Fuzzy match search (partial text → score > 0.5)
     let fuzzy: Value = server
@@ -270,7 +262,7 @@ async fn qa_scenario2_tm_round_trip() {
         .json(&json!({
             "target": "빠른 갈색 여우",
             "status": "translated",
-            "tm_match_score": 1.0
+            "tm_match_score": 100
         }))
         .await;
     resp.assert_status_ok();
@@ -471,7 +463,7 @@ async fn qa_scenario4_long_segment() {
         .await
         .json();
     let seg_id = segs[0]["id"].as_str().unwrap().to_string();
-    assert_eq!(segs[0]["source"].as_str().unwrap().len(), 5000);
+    assert_eq!(segs[0]["source"].as_str().unwrap().chars().count(), 5000);
 
     // Edit with long target
     let resp = server
@@ -481,7 +473,7 @@ async fn qa_scenario4_long_segment() {
         .await;
     resp.assert_status_ok();
     let updated: Value = resp.json();
-    assert_eq!(updated["target"].as_str().unwrap().len(), 5000);
+    assert_eq!(updated["target"].as_str().unwrap().chars().count(), 5000);
     assert_eq!(updated["status"], "confirmed");
 }
 
