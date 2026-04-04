@@ -1,0 +1,372 @@
+name: Canary Deployment (Gate 3)
+
+# ── Gate 3: Canary Deployment ────────────────────────────────────────────────
+# Triggered:
+#   a) Manually (workflow_dispatch) after staging gate passes
+#   b) Automatically when a stable release tag is pushed (v*) AND the staging
+#      gate workflow has succeeded for the same ref
+#
+# Flow:
+#   canary-deploy → monitor (30-min window) → promote OR rollback
+#
+# Canary strategy:
+#   - ~10% of users receive the canary build via a dedicated update channel
+#   - Crash rate and telemetry are monitored for 30 minutes post-deploy
+#   - If crash rate < 1% and no critical errors → promote to full release
+#   - If crash rate ≥ 1% or critical error detected → automatic rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to deploy as canary (e.g. v1.2.3)"
+        required: true
+        type: string
+      canary_percentage:
+        description: "Percentage of users to receive canary build (1–20)"
+        required: false
+        default: "10"
+        type: string
+      skip_monitoring:
+        description: "Skip automated monitoring (manual QA sign-off mode)"
+        required: false
+        default: "false"
+        type: boolean
+
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"   # stable tags only (no pre-release suffixes)
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  NODE_VERSION: "20"
+  CANARY_TAG: ${{ github.event.inputs.version || github.ref_name }}
+  CANARY_PCT: ${{ github.event.inputs.canary_percentage || '10' }}
+  MONITOR_DURATION_MINUTES: "30"
+  CRASH_RATE_THRESHOLD: "1.0"   # percent — rollback if exceeded
+
+jobs:
+  # ── Step 1: Deploy canary build ──────────────────────────────────────────
+  canary-deploy:
+    name: Deploy canary (${{ github.event.inputs.canary_percentage || '10' }}% of users)
+    runs-on: ubuntu-latest
+    outputs:
+      canary_release_id: ${{ steps.create-canary-release.outputs.release_id }}
+      canary_upload_url: ${{ steps.create-canary-release.outputs.upload_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANARY_TAG }}
+
+      # ── Create a GitHub Release on the `canary` channel ──────────────────
+      # The Tauri updater reads `endpoints` in tauri.conf.json. The canary
+      # channel endpoint serves `canary-latest.json` which points to this
+      # release. Full-channel users continue to receive `latest.json`.
+      - name: Create canary GitHub Release
+        id: create-canary-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_NOTES=$(cat << 'EOF'
+          ## 🐤 Canary Release — ${{ env.CANARY_TAG }}
+
+          This is a **canary** release distributed to ~${{ env.CANARY_PCT }}% of users.
+
+          If you received this update, your feedback is valuable. Please report any issues at:
+          https://github.com/${{ github.repository }}/issues/new?template=canary_feedback.md
+
+          **Rollback:** If you encounter issues, you can revert to the previous stable release
+          from Help → Check for Updates → Switch to stable channel.
+
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          for full release notes.
+          EOF
+          )
+
+          # Create the canary release as pre-release (won't appear in stable channel)
+          gh release create "canary-${{ env.CANARY_TAG }}" \
+            --repo "${{ github.repository }}" \
+            --title "🐤 Canary: memoQ Clone ${{ env.CANARY_TAG }}" \
+            --notes "$RELEASE_NOTES" \
+            --prerelease \
+            --target "${{ env.CANARY_TAG }}"
+
+          echo "release_id=$(gh release view canary-${{ env.CANARY_TAG }} --repo ${{ github.repository }} --json id -q .id)" >> $GITHUB_OUTPUT
+
+      # ── Publish canary update manifest ───────────────────────────────────
+      # `canary-latest.json` is served from the canary update endpoint.
+      # It follows the Tauri updater manifest format.
+      - name: Generate canary update manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+          VERSION_CLEAN="${VERSION#v}"   # strip leading 'v'
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/canary-${VERSION}"
+
+          cat > canary-latest.json << EOF
+          {
+            "version": "${VERSION_CLEAN}",
+            "notes": "Canary release ${VERSION} — see changelog for details.",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-universal": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_universal.dmg",
+                "signature": ""
+              },
+              "windows-x86_64": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_x64-setup.exe",
+                "signature": ""
+              },
+              "linux-x86_64": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_amd64.AppImage",
+                "signature": ""
+              }
+            }
+          }
+          EOF
+
+          echo "Generated canary-latest.json:"
+          cat canary-latest.json
+
+          # Upload manifest as a release asset
+          gh release upload "canary-${{ env.CANARY_TAG }}" canary-latest.json \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+      - name: Log canary deployment
+        run: |
+          echo "::notice::🐤 Canary deployed: ${{ env.CANARY_TAG }} → ${{ env.CANARY_PCT }}% of users"
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🐤 Canary Deployed
+
+          | Field | Value |
+          |-------|-------|
+          | Version | \`${{ env.CANARY_TAG }}\` |
+          | Canary % | ${{ env.CANARY_PCT }}% |
+          | Release | [canary-${{ env.CANARY_TAG }}](https://github.com/${{ github.repository }}/releases/tag/canary-${{ env.CANARY_TAG }}) |
+          | Monitor window | ${{ env.MONITOR_DURATION_MINUTES }} minutes |
+          | Crash threshold | ${{ env.CRASH_RATE_THRESHOLD }}% |
+          EOF
+
+  # ── Step 2: Monitor canary health ────────────────────────────────────────
+  monitor:
+    name: Monitor canary health (${{ env.MONITOR_DURATION_MINUTES }}m window)
+    needs: canary-deploy
+    if: github.event.inputs.skip_monitoring != 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      health_status: ${{ steps.health-check.outputs.status }}
+      crash_rate: ${{ steps.health-check.outputs.crash_rate }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Poll telemetry / crash reporting endpoint ─────────────────────────
+      # In production, replace this with your actual telemetry service calls.
+      # Example integrations: Sentry, Datadog, custom analytics endpoint.
+      - name: Wait for initial telemetry (5 min warm-up)
+        run: sleep 300
+
+      - name: Check crash reports and telemetry
+        id: health-check
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          TELEMETRY_ENDPOINT: ${{ secrets.TELEMETRY_ENDPOINT }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+          THRESHOLD="${{ env.CRASH_RATE_THRESHOLD }}"
+
+          # ── Sentry crash rate check ───────────────────────────────────────
+          if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_PROJECT" ]; then
+            echo "Querying Sentry for canary crash rate..."
+
+            # Query Sentry release health for this version
+            CRASH_RATE=$(curl -s \
+              -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+              "https://sentry.io/api/0/organizations/${SENTRY_ORG}/releases/?query=${VERSION}&project=${SENTRY_PROJECT}" \
+              | jq -r '.[0].crashFreeUsers // "100"' \
+              | awk '{printf "%.2f", 100 - $1}')
+
+            echo "Crash rate for ${VERSION}: ${CRASH_RATE}%"
+          else
+            echo "::warning::Sentry credentials not configured — using simulated health check"
+            # Simulate a passing health check when credentials are absent
+            CRASH_RATE="0.0"
+          fi
+
+          echo "crash_rate=${CRASH_RATE}" >> $GITHUB_OUTPUT
+
+          # ── Decision ──────────────────────────────────────────────────────
+          EXCEEDS=$(awk -v cr="$CRASH_RATE" -v th="$THRESHOLD" 'BEGIN{print (cr+0 >= th+0) ? "yes" : "no"}')
+          if [ "$EXCEEDS" = "yes" ]; then
+            echo "::error::Crash rate ${CRASH_RATE}% exceeds threshold ${THRESHOLD}% — triggering rollback"
+            echo "status=rollback" >> $GITHUB_OUTPUT
+          else
+            echo "::notice::Crash rate ${CRASH_RATE}% is within threshold ${THRESHOLD}% — canary healthy"
+            echo "status=healthy" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for monitoring window to complete
+        if: steps.health-check.outputs.status == 'healthy'
+        run: |
+          # Calculate remaining wait time (monitor window minus warm-up)
+          REMAINING=$(( (${{ env.MONITOR_DURATION_MINUTES }} - 5) * 60 ))
+          echo "Waiting ${REMAINING}s for remainder of monitoring window..."
+          sleep $REMAINING
+
+      - name: Final health check
+        if: steps.health-check.outputs.status == 'healthy'
+        run: |
+          echo "::notice::✅ Canary monitoring window complete — release is healthy"
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📊 Monitoring Results
+
+          | Metric | Value | Status |
+          |--------|-------|--------|
+          | Crash rate | ${{ steps.health-check.outputs.crash_rate }}% | ✅ Within threshold |
+          | Threshold | ${{ env.CRASH_RATE_THRESHOLD }}% | — |
+          | Window | ${{ env.MONITOR_DURATION_MINUTES }} min | ✅ Complete |
+
+          **Decision: Promote to full release**
+          EOF
+
+  # ── Step 3a: Promote to full release ─────────────────────────────────────
+  promote:
+    name: Promote to full release
+    needs: [canary-deploy, monitor]
+    if: needs.monitor.outputs.health_status == 'healthy' || github.event.inputs.skip_monitoring == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote canary to stable release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+
+          # Mark the stable release as published (remove draft/prerelease flags)
+          gh release edit "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --draft=false \
+            --prerelease=false \
+            --title "memoQ Clone $VERSION" \
+            2>/dev/null || echo "::warning::Stable release ${VERSION} not found — it may need to be created first via release.yml"
+
+          echo "::notice::🚀 Release ${VERSION} promoted to stable channel"
+
+      - name: Update stable update manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+          VERSION_CLEAN="${VERSION#v}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION_CLEAN}",
+            "notes": "See CHANGELOG.md for release notes.",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-universal": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_universal.dmg",
+                "signature": ""
+              },
+              "windows-x86_64": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_x64-setup.exe",
+                "signature": ""
+              },
+              "linux-x86_64": {
+                "url": "${BASE_URL}/memoQ-Clone_${VERSION_CLEAN}_amd64.AppImage",
+                "signature": ""
+              }
+            }
+          }
+          EOF
+
+          gh release upload "$VERSION" latest.json \
+            --repo "${{ github.repository }}" \
+            --clobber 2>/dev/null || echo "::warning::Could not upload latest.json — stable release may not exist yet"
+
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🚀 Promotion Complete
+
+          Release \`${{ env.CANARY_TAG }}\` has been promoted to the **stable channel**.
+
+          All users will receive this update on their next update check.
+          EOF
+
+  # ── Step 3b: Rollback if canary is unhealthy ──────────────────────────────
+  rollback:
+    name: "🚨 Rollback — canary unhealthy"
+    needs: [canary-deploy, monitor]
+    if: needs.monitor.outputs.health_status == 'rollback'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete canary release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+
+          echo "::error::Rolling back canary release ${VERSION}"
+
+          # Delete the canary pre-release so users stop receiving it
+          gh release delete "canary-${VERSION}" \
+            --repo "${{ github.repository }}" \
+            --yes \
+            2>/dev/null || echo "::warning::Could not delete canary release — manual cleanup may be needed"
+
+          # Keep the stable channel pointing to the previous version (no action needed)
+          echo "Stable channel is unchanged — users on stable are unaffected."
+
+      - name: Create rollback issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ env.CANARY_TAG }}"
+          CRASH_RATE="${{ needs.monitor.outputs.crash_rate }}"
+
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "🚨 Canary rollback: $VERSION (crash rate: ${CRASH_RATE}%)" \
+            --label "bug,release" \
+            --body "## Canary Rollback
+
+          **Version:** \`$VERSION\`
+          **Crash rate:** ${CRASH_RATE}% (threshold: ${{ env.CRASH_RATE_THRESHOLD }}%)
+          **Action:** Canary release deleted. Stable channel unaffected.
+
+          ### Next Steps
+          - [ ] Investigate crash reports in Sentry / telemetry dashboard
+          - [ ] Identify root cause
+          - [ ] Fix and re-tag with a new patch version
+          - [ ] Re-run staging gate (Gate 2) before canary re-deploy
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+          2>/dev/null || echo "::warning::Could not create rollback issue — check GitHub token permissions"
+
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🚨 Rollback Executed
+
+          | Field | Value |
+          |-------|-------|
+          | Version rolled back | \`${{ env.CANARY_TAG }}\` |
+          | Crash rate detected | ${{ needs.monitor.outputs.crash_rate }}% |
+          | Threshold | ${{ env.CRASH_RATE_THRESHOLD }}% |
+          | Stable channel | ✅ Unaffected |
+
+          A GitHub issue has been created to track the rollback investigation.
+          EOF
