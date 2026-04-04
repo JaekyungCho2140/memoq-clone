@@ -125,6 +125,20 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
             timestamp      TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS vendor_assignments (
+            id           TEXT PRIMARY KEY,
+            project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            file_id      TEXT REFERENCES project_files(id) ON DELETE SET NULL,
+            vendor_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            -- pending | submitted | approved | rejected
+            status       TEXT NOT NULL DEFAULT 'pending',
+            notes        TEXT NOT NULL DEFAULT '',
+            submitted_at TEXT,
+            reviewed_at  TEXT,
+            created_at   TEXT NOT NULL,
+            updated_at   TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tevents_project ON translation_events(project_id, timestamp);
         CREATE INDEX IF NOT EXISTS idx_tevents_user    ON translation_events(user_id, timestamp);
 
@@ -140,6 +154,9 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
         CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
         -- Refresh tokens by user (for revocation)
         CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id, revoked, expires_at);
+        -- Vendor assignments
+        CREATE INDEX IF NOT EXISTS idx_assign_vendor  ON vendor_assignments(vendor_id, status);
+        CREATE INDEX IF NOT EXISTS idx_assign_project ON vendor_assignments(project_id);
         "#,
     )
 }

@@ -5,6 +5,7 @@ pub mod projects;
 pub mod segments;
 pub mod tb;
 pub mod tm;
+pub mod vendor;
 
 use axum::{
     middleware,
@@ -67,6 +68,15 @@ pub fn api_routes(state: AppState) -> Router {
         // Alignment
         .route("/alignment/align", post(alignment::align_documents))
         .route("/alignment/confirm", post(alignment::confirm_alignment))
+        // Vendor portal
+        .route(
+            "/projects/:projectId/assignments",
+            post(vendor::create_assignment),
+        )
+        .route("/vendor/assignments", get(vendor::list_my_assignments))
+        .route("/assignments/:id/submit", post(vendor::submit_assignment))
+        .route("/assignments/:id/approve", post(vendor::approve_assignment))
+        .route("/assignments/:id/reject", post(vendor::reject_assignment))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .with_state(state.clone());
 
