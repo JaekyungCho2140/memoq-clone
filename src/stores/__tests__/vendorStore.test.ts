@@ -193,6 +193,53 @@ describe("useVendorStore — deliver (mock path)", () => {
   });
 });
 
+describe("useVendorStore — acceptDelivery (mock path)", () => {
+  beforeEach(resetStore);
+
+  it("marks assignment as accepted in both lists", async () => {
+    const a = makeAssignment({ id: "a1", status: "delivered", deliveredAt: new Date().toISOString() });
+    useVendorStore.setState({ myAssignments: [a], allAssignments: [a] });
+
+    await useVendorStore.getState().acceptDelivery("a1");
+
+    expect(useVendorStore.getState().allAssignments[0].status).toBe("accepted");
+    expect(useVendorStore.getState().myAssignments[0].status).toBe("accepted");
+    expect(useVendorStore.getState().isLoading).toBe(false);
+  });
+
+  it("sets error and rethrows when fetch fails", async () => {
+    const w = window as unknown as Record<string, unknown>;
+    const originalFetch = w.fetch as typeof fetch;
+    w.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 });
+    w.__WEB_API_BASE__ = "http://localhost:3000";
+
+    const a = makeAssignment({ id: "a1", status: "delivered" });
+    useVendorStore.setState({ allAssignments: [a] });
+
+    await expect(useVendorStore.getState().acceptDelivery("a1")).rejects.toThrow();
+    expect(useVendorStore.getState().error).not.toBeNull();
+
+    delete w.__WEB_API_BASE__;
+    w.fetch = originalFetch;
+  });
+});
+
+describe("useVendorStore — rejectDelivery (mock path)", () => {
+  beforeEach(resetStore);
+
+  it("marks assignment as rejected with note in both lists", async () => {
+    const a = makeAssignment({ id: "a1", status: "delivered" });
+    useVendorStore.setState({ myAssignments: [a], allAssignments: [a] });
+
+    await useVendorStore.getState().rejectDelivery("a1", "번역 품질 미달");
+
+    const updated = useVendorStore.getState().allAssignments[0];
+    expect(updated.status).toBe("rejected");
+    expect(updated.rejectionNote).toBe("번역 품질 미달");
+    expect(useVendorStore.getState().myAssignments[0].status).toBe("rejected");
+  });
+});
+
 describe("useVendorStore — setError", () => {
   beforeEach(resetStore);
 

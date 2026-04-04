@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useVendorStore } from "../../stores/vendorStore";
 import type { VendorAssignment, VendorAssignmentStatus, VendorInfo } from "../../types";
+import { DeliveryReviewModal } from "./DeliveryReviewModal";
 
 const STATUS_LABEL: Record<VendorAssignmentStatus, string> = {
   pending: "대기",
@@ -27,6 +28,7 @@ interface VendorCardProps {
 
 function VendorCard({ vendor, assignments }: VendorCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [reviewAssignment, setReviewAssignment] = useState<VendorAssignment | null>(null);
   const active = assignments.filter(
     (a) => a.status === "pending" || a.status === "in_progress",
   );
@@ -73,6 +75,7 @@ function VendorCard({ vendor, assignments }: VendorCardProps) {
                   <th>마감일</th>
                   <th>납품일</th>
                   <th>상태</th>
+                  <th>작업</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,12 +106,28 @@ function VendorCard({ vendor, assignments }: VendorCardProps) {
                         {STATUS_LABEL[a.status]}
                       </span>
                     </td>
+                    <td>
+                      {a.status === "delivered" && (
+                        <button
+                          className="btn-small btn-primary"
+                          onClick={() => setReviewAssignment(a)}
+                        >
+                          검토
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
+      )}
+      {reviewAssignment && (
+        <DeliveryReviewModal
+          assignment={reviewAssignment}
+          onClose={() => setReviewAssignment(null)}
+        />
       )}
     </div>
   );

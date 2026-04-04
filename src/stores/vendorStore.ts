@@ -121,6 +121,8 @@ interface VendorState {
   // Admin actions
   fetchAllAssignments: () => Promise<void>;
   fetchVendors: () => Promise<void>;
+  acceptDelivery: (assignmentId: string) => Promise<void>;
+  rejectDelivery: (assignmentId: string, note: string) => Promise<void>;
 
   setError: (msg: string | null) => void;
 }
@@ -211,6 +213,61 @@ export const useVendorStore = create<VendorState>((set, _get) => ({
         myAssignments: update(state.myAssignments),
         allAssignments: update(state.allAssignments),
         activeAssignment: null,
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ isLoading: false, error: msg });
+      throw e;
+    }
+  },
+
+  async acceptDelivery(assignmentId) {
+    set({ isLoading: true, error: null });
+    try {
+      const base = apiBase();
+      if (base) {
+        const res = await fetch(`${base}/api/admin/vendor/assignments/${assignmentId}/accept`, {
+          method: "POST",
+          headers: { ...authHeader(), "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error(`수락 실패: ${res.status}`);
+      }
+      const update = (list: VendorAssignment[]): VendorAssignment[] =>
+        list.map((a) =>
+          a.id === assignmentId ? { ...a, status: "accepted" } : a
+        );
+      set((state) => ({
+        isLoading: false,
+        allAssignments: update(state.allAssignments),
+        myAssignments: update(state.myAssignments),
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ isLoading: false, error: msg });
+      throw e;
+    }
+  },
+
+  async rejectDelivery(assignmentId, note) {
+    set({ isLoading: true, error: null });
+    try {
+      const base = apiBase();
+      if (base) {
+        const res = await fetch(`${base}/api/admin/vendor/assignments/${assignmentId}/reject`, {
+          method: "POST",
+          headers: { ...authHeader(), "Content-Type": "application/json" },
+          body: JSON.stringify({ note }),
+        });
+        if (!res.ok) throw new Error(`반려 실패: ${res.status}`);
+      }
+      const update = (list: VendorAssignment[]): VendorAssignment[] =>
+        list.map((a) =>
+          a.id === assignmentId ? { ...a, status: "rejected", rejectionNote: note } : a
+        );
+      set((state) => ({
+        isLoading: false,
+        allAssignments: update(state.allAssignments),
+        myAssignments: update(state.myAssignments),
       }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
