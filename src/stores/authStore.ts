@@ -15,9 +15,13 @@ const ACCESS_KEY = "mq_access_token";
 const REFRESH_KEY = "mq_refresh_token";
 const USER_KEY = "mq_user";
 
+export type UserRole = "admin" | "vendor";
+
 export interface AuthUser {
   id: string;
   username: string;
+  /** "admin" for project managers/admins; "vendor" for external translators */
+  role: UserRole;
 }
 
 interface AuthState {

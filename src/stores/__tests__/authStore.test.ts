@@ -10,7 +10,7 @@ const ACCESS_KEY = "mq_access_token";
 const REFRESH_KEY = "mq_refresh_token";
 const USER_KEY = "mq_user";
 
-const fakeUser = { id: "u1", username: "alice" };
+const fakeUser = { id: "u1", username: "alice", role: "admin" as const };
 const fakeTokens = {
   access_token: "fake-access",
   refresh_token: "fake-refresh",
