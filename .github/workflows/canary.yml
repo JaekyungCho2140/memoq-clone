@@ -33,9 +33,8 @@ on:
         default: "false"
         type: boolean
 
-  push:
-    tags:
-      - "v[0-9]*.[0-9]*.[0-9]*"   # stable tags only (glob pattern, no pre-release suffixes)
+  # Note: push-on-tag trigger removed — canary deploys are manual (Gate 3).
+  # To deploy canary, use workflow_dispatch after staging gate passes.
 
 permissions:
   contents: write
