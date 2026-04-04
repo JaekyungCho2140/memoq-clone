@@ -67,3 +67,33 @@ jobs:
         run: |
           cargo install cargo-audit --quiet
           cargo audit --manifest-path src-tauri/Cargo.toml
+
+  # ── Windows compilation check ─────────────────────────────────────────────
+  # Verifies that the Rust backend compiles on Windows (x86_64-pc-windows-msvc).
+  # Uses `cargo check` + `cargo test` for fast validation without a full Tauri
+  # installer build (which requires native Windows GUI/WebView2 toolchain).
+  # Full Windows installer builds run in release.yml and staging.yml.
+  windows-check:
+    name: Backend (Rust / Windows x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri"
+
+      # cargo check validates that all crates compile on Windows
+      # without the overhead of code generation. Catches Windows-specific
+      # compile errors (API differences, conditional compilation, paths).
+      - name: Check compilation (Windows MSVC)
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all
+
+      # Run unit/integration tests on Windows to catch platform-specific bugs
+      # (e.g., path separator issues, file locking, SQLite behaviour).
+      - name: Test (Windows)
+        run: cargo test --manifest-path src-tauri/Cargo.toml

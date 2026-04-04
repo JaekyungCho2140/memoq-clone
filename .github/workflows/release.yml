@@ -123,6 +123,79 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           args: ${{ matrix.args }}
 
+      # ── Validate build artifacts ─────────────────────────────────────────
+      # Ensures expected installer files were produced and are non-empty.
+      # Fails the build if a required artifact is missing or zero-byte.
+      - name: Validate build artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $bundleDir = "src-tauri\target\release\bundle"
+          Write-Host "Scanning $bundleDir for Windows installer artifacts..."
+
+          $installers = @()
+          $installers += Get-ChildItem -Path $bundleDir -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue
+          $installers += Get-ChildItem -Path $bundleDir -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue
+
+          if ($installers.Count -eq 0) {
+            Write-Error "No .exe or .msi installer found under $bundleDir"
+            exit 1
+          }
+
+          $failed = $false
+          foreach ($f in $installers) {
+            if ($f.Length -eq 0) {
+              Write-Error "Zero-byte artifact: $($f.FullName)"
+              $failed = $true
+            } else {
+              $sizeMb = [math]::Round($f.Length / 1MB, 2)
+              Write-Host "OK  $($f.Name)  ($sizeMb MB)"
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host "All Windows artifacts validated successfully."
+
+      - name: Validate build artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          echo "Scanning for macOS installer artifacts..."
+          found=0
+          for f in \
+            src-tauri/target/release/bundle/**/*.dmg \
+            src-tauri/target/universal-apple-darwin/release/bundle/**/*.dmg; do
+            [ -f "$f" ] || continue
+            size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
+            if [ "$size" -eq 0 ]; then
+              echo "ERROR: Zero-byte artifact: $f" >&2; exit 1
+            fi
+            echo "OK  $(basename "$f")  ($(( size / 1048576 )) MB)"
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "ERROR: No .dmg artifact found" >&2; exit 1
+          fi
+          echo "All macOS artifacts validated successfully."
+
+      - name: Validate build artifacts (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          echo "Scanning for Linux installer artifacts..."
+          found=0
+          for f in src-tauri/target/release/bundle/**/*.AppImage; do
+            [ -f "$f" ] || continue
+            size=$(stat -c%s "$f")
+            if [ "$size" -eq 0 ]; then
+              echo "ERROR: Zero-byte artifact: $f" >&2; exit 1
+            fi
+            echo "OK  $(basename "$f")  ($(( size / 1048576 )) MB)"
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "WARNING: No .AppImage found (Linux build may be optional)"
+          fi
+
   # ── Publish the `latest.json` updater manifest ──────────────────────────
   # After all platform builds succeed, publish the release (draft → published).
   # The tauri-action creates a `latest.json` alongside each platform artifact.
