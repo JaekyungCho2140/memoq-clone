@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0" srcLang="en" trgLang="ko">
+  <file id="f1" original="sample.txt">
+    <unit id="1">
+      <segment>
+        <source>Hello, world!</source>
+        <target></target>
+      </segment>
+    </unit>
+    <unit id="2">
+      <segment>
+        <source>Translation memory fuzzy match test.</source>
+        <target></target>
+      </segment>
+    </unit>
+  </file>
+</xliff>
