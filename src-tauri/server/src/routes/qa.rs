@@ -1,5 +1,5 @@
 use axum::{extract::State, Json};
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -174,10 +174,10 @@ pub async fn run_qa_check(
             .query_row(
                 "SELECT owner_id FROM projects WHERE id = ?1",
                 params![&project_id],
-                |row| row.get(0),
+                |row| row.get::<_, String>(0),
             )
             .optional()
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+            .map_err(|e: rusqlite::Error| AppError::Internal(anyhow::anyhow!(e)))?;
         match owner {
             None => return Err(AppError::NotFound("Project not found".to_string())),
             Some(oid) if oid != user_id => return Err(AppError::Forbidden),
@@ -202,35 +202,22 @@ pub async fn run_qa_check(
             .collect::<Result<_, _>>()
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        // TB 금지어 조회 (선택적)
-        let forbidden_terms: Vec<String> = if let Some(ref tid) = tb_id {
-            if !tid.is_empty() {
-                // tb_id가 실제 UUID면 해당 엔트리만, 아니면 전체
-                let mut stmt2 = conn
-                    .prepare(
-                        "SELECT target_term FROM tb_entries WHERE forbidden = 1 AND owner_id = ?1",
-                    )
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-                stmt2
-                    .query_map(params![&user_id], |row| row.get(0))
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-                    .collect::<Result<_, _>>()
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-            } else {
-                Vec::new()
-            }
-        } else {
-            // tb_id 없으면 사용자 전체 금지어
+        // TB 금지어 조회: tb_id가 Some이고 비어있지 않으면 해당 소유자의 금지어 로드
+        let load_forbidden = tb_id.as_deref().map(|t| !t.is_empty()).unwrap_or(false);
+        let forbidden_terms: Vec<String> = if load_forbidden {
             let mut stmt2 = conn
                 .prepare(
                     "SELECT target_term FROM tb_entries WHERE forbidden = 1 AND owner_id = ?1",
                 )
                 .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-            stmt2
-                .query_map(params![&user_id], |row| row.get(0))
+            let rows = stmt2
+                .query_map(params![&user_id], |row| row.get::<_, String>(0))
                 .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-                .collect::<Result<_, _>>()
-                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                .collect::<Result<Vec<String>, _>>()
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+            rows
+        } else {
+            Vec::new()
         };
 
         // QA 검사 실행

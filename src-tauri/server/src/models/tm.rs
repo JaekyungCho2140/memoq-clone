@@ -21,6 +21,7 @@ pub struct CreateTmRequest {
 
 #[derive(Debug, Serialize)]
 pub struct TmSearchResult {
+    #[serde(flatten)]
     pub entry: TmEntry,
     /// Fuzzy match score 0.0–1.0
     pub score: f64,

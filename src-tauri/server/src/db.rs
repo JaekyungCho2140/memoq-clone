@@ -139,6 +139,18 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
             updated_at   TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS plugins (
+            id           TEXT PRIMARY KEY,
+            name         TEXT NOT NULL,
+            version      TEXT NOT NULL DEFAULT '1.0.0',
+            kind         TEXT NOT NULL DEFAULT 'MtProvider',
+            enabled      INTEGER NOT NULL DEFAULT 1,
+            params_json  TEXT NOT NULL DEFAULT '[]',
+            error        TEXT,
+            owner_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            installed_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tevents_project ON translation_events(project_id, timestamp);
         CREATE INDEX IF NOT EXISTS idx_tevents_user    ON translation_events(user_id, timestamp);
 

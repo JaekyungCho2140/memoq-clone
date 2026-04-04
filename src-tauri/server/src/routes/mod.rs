@@ -1,7 +1,10 @@
 pub mod alignment;
 pub mod analytics;
 pub mod files;
+pub mod mt;
+pub mod plugins;
 pub mod projects;
+pub mod qa;
 pub mod segments;
 pub mod tb;
 pub mod term_extraction;
@@ -83,6 +86,16 @@ pub fn api_routes(state: AppState) -> Router {
         .route(
             "/term-extraction/add-to-tb",
             post(term_extraction::add_terms_to_tb),
+        )
+        // QA check
+        .route("/qa/check", post(qa::run_qa_check))
+        // Machine Translation
+        .route("/mt/translate", post(mt::translate))
+        // Plugins
+        .route("/plugins", get(plugins::list_plugins).post(plugins::install_plugin))
+        .route(
+            "/plugins/:id",
+            patch(plugins::update_plugin).delete(plugins::remove_plugin),
         )
         // Vendor portal
         .route(
