@@ -17,7 +17,7 @@ pub async fn tm_create(
             "source and target language codes must not be empty".into(),
         ));
     }
-    TmEngine::create(&name, &source_lang, &target_lang).map_err(|e| AppError::storage(e))
+    TmEngine::create(&name, &source_lang, &target_lang).map_err(AppError::storage)
 }
 
 #[command]
@@ -36,10 +36,10 @@ pub async fn tm_add(
             "source segment must not be empty".into(),
         ));
     }
-    let engine = TmEngine::open(&tm_id).map_err(|e| AppError::storage(e))?;
+    let engine = TmEngine::open(&tm_id).map_err(AppError::storage)?;
     engine
         .add(&source, &target, &source_lang, &target_lang)
-        .map_err(|e| AppError::storage(e))
+        .map_err(AppError::storage)
 }
 
 #[command]
@@ -63,7 +63,7 @@ pub async fn tm_search(
             "min_score must be between 0.0 and 1.0, got {min_score}"
         )));
     }
-    let engine = TmEngine::open(&tm_id).map_err(|e| AppError::storage(e))?;
+    let engine = TmEngine::open(&tm_id).map_err(AppError::storage)?;
     engine
         .search(TmSearchParams {
             query: &query,
@@ -71,5 +71,5 @@ pub async fn tm_search(
             target_lang: &target_lang,
             min_score,
         })
-        .map_err(|e| AppError::storage(e))
+        .map_err(AppError::storage)
 }

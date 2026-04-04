@@ -14,7 +14,7 @@ pub async fn parse_file(path: String) -> Result<Project, AppError> {
         return Err(AppError::Validation("file path must not be empty".into()));
     }
 
-    let metadata = std::fs::metadata(&path).map_err(|e| AppError::file(e))?;
+    let metadata = std::fs::metadata(&path).map_err(AppError::file)?;
     if metadata.len() > MAX_FILE_BYTES {
         return Err(AppError::FileTooLarge(format!(
             "file size {} bytes exceeds the {} byte limit",
@@ -23,7 +23,7 @@ pub async fn parse_file(path: String) -> Result<Project, AppError> {
         )));
     }
 
-    parse(&path).map_err(|e| AppError::file(e))
+    parse(&path).map_err(AppError::file)
 }
 
 /// Export translated segments back into the original file format.
@@ -43,5 +43,5 @@ pub async fn export_xliff(
         return Err(AppError::Validation("output path must not be empty".into()));
     }
 
-    export(&segments, &input_path, &output_path).map_err(|e| AppError::file(e))
+    export(&segments, &input_path, &output_path).map_err(AppError::file)
 }
