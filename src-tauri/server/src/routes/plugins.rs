@@ -66,8 +66,7 @@ fn row_to_plugin(
     error: Option<String>,
     installed_at: String,
 ) -> Plugin {
-    let params: Vec<PluginParam> =
-        serde_json::from_str(&params_json).unwrap_or_default();
+    let params: Vec<PluginParam> = serde_json::from_str(&params_json).unwrap_or_default();
     Plugin {
         id,
         name,
@@ -183,13 +182,32 @@ pub async fn update_plugin(
 
     let plugin = run_db(pool, move |conn| {
         // 존재 여부 및 소유자 확인
-        let existing: Option<(String, String, String, String, i64, String, Option<String>, String)> = conn
+        let existing: Option<(
+            String,
+            String,
+            String,
+            String,
+            i64,
+            String,
+            Option<String>,
+            String,
+        )> = conn
             .query_row(
                 "SELECT id, name, version, kind, enabled, params_json, error, installed_at
                  FROM plugins WHERE id = ?1 AND owner_id = ?2",
                 params![&id, &owner_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
-                           row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                    ))
+                },
             )
             .optional()
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -220,8 +238,14 @@ pub async fn update_plugin(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
         Ok(row_to_plugin(
-            pid, name, version, kind,
-            new_enabled != 0, new_params_json, error, installed_at,
+            pid,
+            name,
+            version,
+            kind,
+            new_enabled != 0,
+            new_params_json,
+            error,
+            installed_at,
         ))
     })
     .await?;

@@ -92,7 +92,10 @@ pub fn api_routes(state: AppState) -> Router {
         // Machine Translation
         .route("/mt/translate", post(mt::translate))
         // Plugins
-        .route("/plugins", get(plugins::list_plugins).post(plugins::install_plugin))
+        .route(
+            "/plugins",
+            get(plugins::list_plugins).post(plugins::install_plugin),
+        )
         .route(
             "/plugins/:id",
             patch(plugins::update_plugin).delete(plugins::remove_plugin),

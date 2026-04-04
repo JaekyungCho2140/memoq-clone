@@ -157,8 +157,16 @@ async fn translate_google(req: &MtTranslateRequest) -> AppResult<String> {
         req.api_key
     );
 
-    let source_lang = req.source_lang.split('-').next().unwrap_or(&req.source_lang);
-    let target_lang = req.target_lang.split('-').next().unwrap_or(&req.target_lang);
+    let source_lang = req
+        .source_lang
+        .split('-')
+        .next()
+        .unwrap_or(&req.source_lang);
+    let target_lang = req
+        .target_lang
+        .split('-')
+        .next()
+        .unwrap_or(&req.target_lang);
 
     let payload = serde_json::json!({
         "q": req.source,
@@ -167,12 +175,9 @@ async fn translate_google(req: &MtTranslateRequest) -> AppResult<String> {
         "format": "text"
     });
 
-    let resp = client
-        .post(&url)
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Google Translate request failed: {}", e)))?;
+    let resp = client.post(&url).json(&payload).send().await.map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Google Translate request failed: {}", e))
+    })?;
 
     if !resp.status().is_success() {
         let status = resp.status();

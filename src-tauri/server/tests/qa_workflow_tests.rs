@@ -16,8 +16,7 @@ async fn setup() -> (TestServer, String) {
     let db_id = QA_COUNTER.fetch_add(1, Ordering::Relaxed);
     let db_name = format!("qa_workflow_{}", db_id);
 
-    let pool =
-        server::db::in_memory_pool_named(&db_name).expect("Failed to create in-memory pool");
+    let pool = server::db::in_memory_pool_named(&db_name).expect("Failed to create in-memory pool");
     server::db::run_migrations(&pool)
         .await
         .expect("Migration failed");
@@ -142,7 +141,11 @@ async fn qa_scenario1_basic_translation_workflow() {
         .await;
     resp.assert_status_ok();
     assert_eq!(resp.json::<Value>()["status"], "confirmed");
-    assert_eq!(resp.json::<Value>()["target"], "안녕", "target preserved after confirm");
+    assert_eq!(
+        resp.json::<Value>()["target"],
+        "안녕",
+        "target preserved after confirm"
+    );
 }
 
 // ─── Scenario 2: TM Round-Trip ───────────────────────────────────────────────
@@ -181,8 +184,14 @@ async fn qa_scenario2_tm_round_trip() {
     let arr = results.as_array().unwrap();
     assert!(!arr.is_empty(), "exact match should return results");
     assert_eq!(arr[0]["score"], 1.0, "exact match score must be 1.0");
-    assert_eq!(arr[0]["source"], "The quick brown fox", "source must be in flattened result");
-    assert_eq!(arr[0]["target"], "빠른 갈색 여우", "target must be in flattened result");
+    assert_eq!(
+        arr[0]["source"], "The quick brown fox",
+        "source must be in flattened result"
+    );
+    assert_eq!(
+        arr[0]["target"], "빠른 갈색 여우",
+        "target must be in flattened result"
+    );
 
     // 2c. Fuzzy match search (partial text → score > 0.5)
     let fuzzy: Value = server
@@ -280,7 +289,11 @@ async fn qa_scenario2_tm_round_trip() {
         .add_header(a.0.clone(), a.1.clone())
         .await
         .json();
-    assert_eq!(list.as_array().unwrap().len(), 0, "TM should be empty after delete");
+    assert_eq!(
+        list.as_array().unwrap().len(),
+        0,
+        "TM should be empty after delete"
+    );
 }
 
 // ─── Scenario 3: DOCX Round-Trip (server-side lifecycle) ─────────────────────
@@ -363,7 +376,10 @@ async fn qa_scenario3_docx_segment_lifecycle() {
         .iter()
         .filter(|s| s["status"] == "confirmed")
         .count();
-    assert_eq!(confirmed_count, 3, "all 3 segments should be confirmed before DOCX export");
+    assert_eq!(
+        confirmed_count, 3,
+        "all 3 segments should be confirmed before DOCX export"
+    );
 }
 
 // ─── Scenario 4: Edge Cases ───────────────────────────────────────────────────
@@ -630,5 +646,8 @@ async fn qa_scenario4_multiple_files_in_project() {
         .unwrap()
         .iter()
         .all(|s| s["status"] == "confirmed");
-    assert!(all_confirmed, "all segments across multiple files should be confirmable");
+    assert!(
+        all_confirmed,
+        "all segments across multiple files should be confirmable"
+    );
 }

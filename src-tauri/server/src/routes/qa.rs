@@ -206,9 +206,7 @@ pub async fn run_qa_check(
         let load_forbidden = tb_id.as_deref().map(|t| !t.is_empty()).unwrap_or(false);
         let forbidden_terms: Vec<String> = if load_forbidden {
             let mut stmt2 = conn
-                .prepare(
-                    "SELECT target_term FROM tb_entries WHERE forbidden = 1 AND owner_id = ?1",
-                )
+                .prepare("SELECT target_term FROM tb_entries WHERE forbidden = 1 AND owner_id = ?1")
                 .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
             let rows = stmt2
                 .query_map(params![&user_id], |row| row.get::<_, String>(0))
@@ -267,10 +265,7 @@ mod tests {
 
     #[test]
     fn test_extract_tags_basic() {
-        assert_eq!(
-            extract_tags("Hello <b>world</b>"),
-            vec!["<b>", "</b>"]
-        );
+        assert_eq!(extract_tags("Hello <b>world</b>"), vec!["<b>", "</b>"]);
     }
 
     #[test]
