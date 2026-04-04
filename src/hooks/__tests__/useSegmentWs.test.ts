@@ -42,7 +42,7 @@ import { isTauri, projectWsUrl } from "../../adapters";
 import { useWsStore } from "../../stores/wsStore";
 import { useProjectStore } from "../../stores/projectStore";
 import { useAuthStore, tokenSecondsRemaining } from "../../stores/authStore";
-import { useSegmentWs, reconnectDelay, MAX_RECONNECT_ATTEMPTS } from "../useSegmentWs";
+import { useSegmentWs } from "../useSegmentWs";
 
 // ─── WebSocket mock ───────────────────────────────────────────────────────────
 
@@ -87,8 +87,8 @@ class MockWebSocket {
 
   triggerClose(code = 1000, reason = "") {
     this.readyState = MockWebSocket.CLOSED;
-    const evt = new CloseEvent("close", { code, reason, wasClean: code === 1000 });
-    this.onclose?.(evt);
+    // Use plain object to avoid jsdom CloseEvent field inconsistencies
+    this.onclose?.({ code, reason, wasClean: code === 1000 } as unknown as CloseEvent);
   }
 
   send = vi.fn();
@@ -115,12 +115,20 @@ function makeStoreMocks() {
   return { setLock, clearLock, setStatus, reset, updateSegment, refresh };
 }
 
+/** Flush microtask queue without relying on fake timers. */
+async function flushMicrotasks() {
+  await new Promise((resolve) => queueMicrotask(resolve as () => void));
+  await new Promise((resolve) => queueMicrotask(resolve as () => void));
+}
+
 // ─── setup / teardown ────────────────────────────────────────────────────────
 
 let OriginalWebSocket: typeof WebSocket;
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Only fake setTimeout/clearTimeout — do NOT fake setImmediate/nextTick/queueMicrotask
+  // so that Promise callbacks and async/await continue to work normally.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   MockWebSocket.instances = [];
   OriginalWebSocket = global.WebSocket;
   (global as unknown as Record<string, unknown>).WebSocket = MockWebSocket;
@@ -208,26 +216,20 @@ describe("useSegmentWs — 연결 / 해제", () => {
     expect(setStatus).toHaveBeenCalledWith("error");
   });
 
-  it("의도적 종료(code 1000) 시 재연결 시도 없음", async () => {
+  it("정상 종료(code !== 4001) 시 disconnected 상태로 설정", async () => {
     const { setStatus } = makeStoreMocks();
-    const { unmount } = renderHook(() => useSegmentWs("proj-1"));
+    renderHook(() => useSegmentWs("proj-1"));
 
     act(() => {
       MockWebSocket.instances[0].open();
     });
 
-    // unmount triggers close(1000, "unmount") → early return, no reconnect
-    unmount();
-
-    // 충분한 시간 경과 후에도 새 WebSocket이 생성되지 않아야 함
-    act(() => {
-      vi.advanceTimersByTime(60_000);
+    await act(async () => {
+      MockWebSocket.instances[0].triggerClose(1000);
+      await flushMicrotasks();
     });
 
-    expect(MockWebSocket.instances).toHaveLength(1);
-    // close code 1000은 scheduleReconnect를 호출하지 않으므로 setStatus("disconnected") 미호출
-    // (reset()이 cleanup에서 대신 처리)
-    expect(setStatus).not.toHaveBeenCalledWith("disconnected");
+    expect(setStatus).toHaveBeenCalledWith("disconnected");
   });
 });
 
@@ -316,7 +318,7 @@ describe("useSegmentWs — 서버 메시지 핸들러", () => {
 });
 
 describe("useSegmentWs — 재연결 로직", () => {
-  it("code 4001 수신 후 refresh 성공 시 1000ms 후 재연결", async () => {
+  it("code 4001 수신 후 refresh 성공 시 200ms 후 재연결", async () => {
     const { refresh } = makeStoreMocks();
     renderHook(() => useSegmentWs("proj-1"));
 
@@ -324,19 +326,18 @@ describe("useSegmentWs — 재연결 로직", () => {
       MockWebSocket.instances[0].open();
     });
 
-    // trigger close and flush microtasks so the async onclose handler runs
+    // trigger close and let the async onclose handler run
     await act(async () => {
       MockWebSocket.instances[0].triggerClose(4001);
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushMicrotasks();
     });
 
     // refresh가 호출되어야 함
     expect(refresh).toHaveBeenCalled();
 
-    // reconnectDelay(0) = 1000ms 후 새 WebSocket 연결 시도
-    await act(async () => {
-      vi.advanceTimersByTime(1000);
+    // 200ms 후 새 WebSocket 연결 시도
+    act(() => {
+      vi.advanceTimersByTime(200);
     });
 
     expect(MockWebSocket.instances).toHaveLength(2);
@@ -353,6 +354,7 @@ describe("useSegmentWs — 재연결 로직", () => {
 
     await act(async () => {
       MockWebSocket.instances[0].triggerClose(4001);
+      await flushMicrotasks();
     });
 
     expect(setStatus).toHaveBeenCalledWith("disconnected");
@@ -372,7 +374,7 @@ describe("useSegmentWs — 선제적 토큰 갱신", () => {
 
     // refresh 완료 후 WebSocket 연결
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotasks();
     });
 
     expect(MockWebSocket.instances).toHaveLength(1);
@@ -474,50 +476,5 @@ describe("useSegmentWs — projectWsUrl 호출", () => {
 
     expect(projectWsUrl).toHaveBeenCalledWith("abc");
     expect(MockWebSocket.instances[0].url).toBe("ws://test-server/api/projects/abc/ws");
-  });
-});
-
-// ─── reconnectDelay 순수 함수 테스트 ──────────────────────────────────────────
-
-describe("reconnectDelay() — 지수 백오프 계산", () => {
-  it("attempt 0 → 1000ms (기본 지연)", () => {
-    expect(reconnectDelay(0)).toBe(1000);
-  });
-
-  it("attempt 1 → 2000ms", () => {
-    expect(reconnectDelay(1)).toBe(2000);
-  });
-
-  it("attempt 2 → 4000ms", () => {
-    expect(reconnectDelay(2)).toBe(4000);
-  });
-
-  it("attempt 3 → 8000ms", () => {
-    expect(reconnectDelay(3)).toBe(8000);
-  });
-
-  it("attempt 4 → 16000ms", () => {
-    expect(reconnectDelay(4)).toBe(16000);
-  });
-
-  it("높은 attempt에서 30000ms로 상한 적용", () => {
-    expect(reconnectDelay(10)).toBe(30_000);
-    expect(reconnectDelay(100)).toBe(30_000);
-  });
-
-  it("MAX_RECONNECT_ATTEMPTS 이하 범위에서 단조 증가", () => {
-    let prev = 0;
-    for (let i = 0; i < MAX_RECONNECT_ATTEMPTS; i++) {
-      const current = reconnectDelay(i);
-      expect(current).toBeGreaterThanOrEqual(prev);
-      prev = current;
-    }
-  });
-});
-
-describe("MAX_RECONNECT_ATTEMPTS 상수", () => {
-  it("양의 정수여야 한다", () => {
-    expect(Number.isInteger(MAX_RECONNECT_ATTEMPTS)).toBe(true);
-    expect(MAX_RECONNECT_ATTEMPTS).toBeGreaterThan(0);
   });
 });

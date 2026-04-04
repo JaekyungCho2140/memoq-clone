@@ -147,15 +147,23 @@ export function useSegmentWs(projectId: string | null): UseSegmentWsReturn {
       ws.onclose = async (evt) => {
         wsRef.current = null;
 
-        // Intentional unmount close — do not reconnect
-        if (evt.code === 1000) return;
+        // Intentional unmount close (our own cleanup) — do not reconnect
+        if (evt.code === 1000 && evt.reason === "unmount") return;
 
-        // Token expired — refresh first, then reconnect (reset retry counter)
+        // Normal / server-initiated clean close — disconnected, no retry
+        if (evt.code === 1000) {
+          setStatus("disconnected");
+          return;
+        }
+
+        // Token expired — refresh first, then reconnect immediately (reset retry counter)
         if (evt.code === 4001) {
           const ok = await refresh();
           if (ok && isMountedRef.current) {
             retryCountRef.current = 0;
-            scheduleReconnect(0);
+            setTimeout(() => {
+              if (isMountedRef.current) connect(0);
+            }, 200);
             return;
           }
           setStatus("disconnected");
