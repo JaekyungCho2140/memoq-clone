@@ -126,7 +126,14 @@ pub async fn create_assignment(
             "INSERT INTO vendor_assignments
              (id, project_id, file_id, vendor_id, status, notes, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, 'pending', '', ?5, ?6)",
-            params![&a.id, &a.project_id, &a.file_id, &a.vendor_id, &a.created_at, &a.updated_at],
+            params![
+                &a.id,
+                &a.project_id,
+                &a.file_id,
+                &a.vendor_id,
+                &a.created_at,
+                &a.updated_at
+            ],
         )
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         Ok(())
@@ -317,10 +324,7 @@ async fn update_assignment_status(
     Ok(Json(updated))
 }
 
-fn fetch_assignment(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> crate::error::AppResult<Assignment> {
+fn fetch_assignment(conn: &rusqlite::Connection, id: &str) -> crate::error::AppResult<Assignment> {
     conn.query_row(
         "SELECT id, project_id, file_id, vendor_id, status, notes,
                 submitted_at, reviewed_at, created_at, updated_at

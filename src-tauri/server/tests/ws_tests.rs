@@ -4,10 +4,10 @@
 /// tokio-tungstenite clients to it.
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use futures::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::Message as TMsg};
-use futures::{SinkExt, StreamExt};
 
 static DB_COUNTER: AtomicU64 = AtomicU64::new(200); // offset from other test files
 
@@ -19,8 +19,7 @@ async fn start_server() -> (String, String, String) {
     let db_id = DB_COUNTER.fetch_add(1, Ordering::Relaxed);
     let db_name = format!("wstest_{}", db_id);
 
-    let pool =
-        server::db::in_memory_pool_named(&db_name).expect("Failed to create in-memory pool");
+    let pool = server::db::in_memory_pool_named(&db_name).expect("Failed to create in-memory pool");
     server::db::run_migrations(&pool)
         .await
         .expect("Migration failed");
@@ -47,9 +46,7 @@ async fn start_server() -> (String, String, String) {
     let addr_clone = addr.clone();
 
     tokio::spawn(async move {
-        axum::serve(listener, router)
-            .await
-            .expect("Server error");
+        axum::serve(listener, router).await.expect("Server error");
     });
 
     let client = reqwest::Client::new();
@@ -103,9 +100,7 @@ async fn recv_json(
 ) -> Value {
     loop {
         match ws.next().await.expect("Stream ended").expect("WS error") {
-            TMsg::Text(txt) => {
-                return serde_json::from_str(&txt).expect("Invalid JSON")
-            }
+            TMsg::Text(txt) => return serde_json::from_str(&txt).expect("Invalid JSON"),
             _ => continue, // skip Ping/Binary/etc.
         }
     }
@@ -118,15 +113,25 @@ async fn test_ws_two_clients_lock_conflict() {
     let (addr, token_a, token_b) = start_server().await;
     let project_id = "fake-project-id"; // WS doesn't validate project existence for locking
 
-    let ws_url_a = format!("ws://{}/api/projects/{}/ws?token={}", addr, project_id, token_a);
-    let ws_url_b = format!("ws://{}/api/projects/{}/ws?token={}", addr, project_id, token_b);
+    let ws_url_a = format!(
+        "ws://{}/api/projects/{}/ws?token={}",
+        addr, project_id, token_a
+    );
+    let ws_url_b = format!(
+        "ws://{}/api/projects/{}/ws?token={}",
+        addr, project_id, token_b
+    );
 
     // Connect client A.
-    let (ws_a, _) = connect_async(&ws_url_a).await.expect("Client A connect failed");
+    let (ws_a, _) = connect_async(&ws_url_a)
+        .await
+        .expect("Client A connect failed");
     let (mut tx_a, mut rx_a) = ws_a.split();
 
     // Connect client B.
-    let (ws_b, _) = connect_async(&ws_url_b).await.expect("Client B connect failed");
+    let (ws_b, _) = connect_async(&ws_url_b)
+        .await
+        .expect("Client B connect failed");
     let (mut tx_b, mut rx_b) = ws_b.split();
 
     // Both clients receive the initial "locks" snapshot (empty).
@@ -137,7 +142,9 @@ async fn test_ws_two_clients_lock_conflict() {
 
     // Client A locks segment "seg-1".
     tx_a.send(TMsg::Text(
-        json!({"type": "lock", "segment_id": "seg-1"}).to_string().into(),
+        json!({"type": "lock", "segment_id": "seg-1"})
+            .to_string()
+            .into(),
     ))
     .await
     .unwrap();
@@ -154,7 +161,9 @@ async fn test_ws_two_clients_lock_conflict() {
 
     // Client B tries to lock the same segment — should get an error (direct).
     tx_b.send(TMsg::Text(
-        json!({"type": "lock", "segment_id": "seg-1"}).to_string().into(),
+        json!({"type": "lock", "segment_id": "seg-1"})
+            .to_string()
+            .into(),
     ))
     .await
     .unwrap();
@@ -165,7 +174,9 @@ async fn test_ws_two_clients_lock_conflict() {
 
     // Client A unlocks — broadcast received by both.
     tx_a.send(TMsg::Text(
-        json!({"type": "unlock", "segment_id": "seg-1"}).to_string().into(),
+        json!({"type": "unlock", "segment_id": "seg-1"})
+            .to_string()
+            .into(),
     ))
     .await
     .unwrap();
@@ -187,12 +198,18 @@ async fn test_ws_auto_unlock_on_disconnect() {
     let project_id = "fake-project-id-2";
 
     // Client A connects and locks a segment.
-    let ws_url_a = format!("ws://{}/api/projects/{}/ws?token={}", addr, project_id, token_a);
+    let ws_url_a = format!(
+        "ws://{}/api/projects/{}/ws?token={}",
+        addr, project_id, token_a
+    );
     let (ws_a, _) = connect_async(&ws_url_a).await.expect("Client A failed");
     let (mut tx_a, mut rx_a) = ws_a.split();
 
     // Client B connects to receive broadcasts.
-    let ws_url_b = format!("ws://{}/api/projects/{}/ws?token={}", addr, project_id, token_b);
+    let ws_url_b = format!(
+        "ws://{}/api/projects/{}/ws?token={}",
+        addr, project_id, token_b
+    );
     let (ws_b, _) = connect_async(&ws_url_b).await.expect("Client B failed");
     let (mut _tx_b, mut rx_b) = ws_b.split();
 
@@ -202,7 +219,9 @@ async fn test_ws_auto_unlock_on_disconnect() {
 
     // Client A locks "seg-auto".
     tx_a.send(TMsg::Text(
-        json!({"type": "lock", "segment_id": "seg-auto"}).to_string().into(),
+        json!({"type": "lock", "segment_id": "seg-auto"})
+            .to_string()
+            .into(),
     ))
     .await
     .unwrap();

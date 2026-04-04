@@ -13,10 +13,7 @@
 //!
 //! Copy the resulting `.wasm` to a plugin directory alongside `manifest.json`.
 
-use plugin_api::{
-    MtRequest, MtResponse,
-    PluginKind, PluginMetadata, PluginResult,
-};
+use plugin_api::{MtRequest, MtResponse, PluginKind, PluginMetadata, PluginResult};
 
 // ── Memory helpers (required by the ABI) ────────────────────────────────────
 
@@ -88,11 +85,7 @@ pub unsafe extern "C" fn mt_translate(ptr: i32, len: i32) -> i64 {
         }
     };
 
-    let translations = req
-        .segments
-        .iter()
-        .map(|s| format!("[MT] {}", s))
-        .collect();
+    let translations = req.segments.iter().map(|s| format!("[MT] {}", s)).collect();
 
     let resp: PluginResult<MtResponse> = PluginResult::Ok(MtResponse { translations });
     write_json(&resp)

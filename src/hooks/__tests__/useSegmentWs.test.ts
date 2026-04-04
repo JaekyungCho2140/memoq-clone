@@ -57,7 +57,7 @@ class MockWebSocket {
   onopen: ((evt: Event) => void) | null = null;
   onmessage: ((evt: MessageEvent) => void) | null = null;
   onerror: ((evt: Event) => void) | null = null;
-  onclose: ((evt: CloseEvent) => void) | null = null;
+  onclose: ((evt: { code: number; reason: string; wasClean: boolean }) => void) | null = null;
 
   static instances: MockWebSocket[] = [];
 
@@ -87,8 +87,7 @@ class MockWebSocket {
 
   triggerClose(code = 1000, reason = "") {
     this.readyState = MockWebSocket.CLOSED;
-    // Use plain object to avoid jsdom CloseEvent field inconsistencies
-    this.onclose?.({ code, reason, wasClean: code === 1000 } as unknown as CloseEvent);
+    this.onclose?.({ code, reason, wasClean: code === 1000 });
   }
 
   send = vi.fn();
@@ -121,14 +120,11 @@ async function flushMicrotasks() {
   await new Promise((resolve) => queueMicrotask(resolve as () => void));
 }
 
-// ─── setup / teardown ────────────────────────────────────────────────────────
+// ─── global setup / teardown (no fake timers) ────────────────────────────────
 
 let OriginalWebSocket: typeof WebSocket;
 
 beforeEach(() => {
-  // Only fake setTimeout/clearTimeout — do NOT fake setImmediate/nextTick/queueMicrotask
-  // so that Promise callbacks and async/await continue to work normally.
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   MockWebSocket.instances = [];
   OriginalWebSocket = global.WebSocket;
   (global as unknown as Record<string, unknown>).WebSocket = MockWebSocket;
@@ -138,7 +134,6 @@ beforeEach(() => {
 
 afterEach(() => {
   (global as unknown as Record<string, unknown>).WebSocket = OriginalWebSocket;
-  vi.useRealTimers();
   vi.clearAllMocks();
   delete (window as unknown as Record<string, unknown>).__TAURI__;
 });
@@ -318,6 +313,15 @@ describe("useSegmentWs — 서버 메시지 핸들러", () => {
 });
 
 describe("useSegmentWs — 재연결 로직", () => {
+  // 이 그룹만 fake timers 사용 (setTimeout 제어 필요)
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("code 4001 수신 후 refresh 성공 시 200ms 후 재연결", async () => {
     const { refresh } = makeStoreMocks();
     renderHook(() => useSegmentWs("proj-1"));
@@ -326,16 +330,15 @@ describe("useSegmentWs — 재연결 로직", () => {
       MockWebSocket.instances[0].open();
     });
 
-    // trigger close and let the async onclose handler run
+    // trigger close and let async onclose handler + refresh() resolve
     await act(async () => {
       MockWebSocket.instances[0].triggerClose(4001);
       await flushMicrotasks();
     });
 
-    // refresh가 호출되어야 함
     expect(refresh).toHaveBeenCalled();
 
-    // 200ms 후 새 WebSocket 연결 시도
+    // 200ms setTimeout 실행
     act(() => {
       vi.advanceTimersByTime(200);
     });
@@ -369,10 +372,8 @@ describe("useSegmentWs — 선제적 토큰 갱신", () => {
 
     renderHook(() => useSegmentWs("proj-1"));
 
-    // refresh가 호출되어야 함
     expect(refresh).toHaveBeenCalled();
 
-    // refresh 완료 후 WebSocket 연결
     await act(async () => {
       await flushMicrotasks();
     });
@@ -447,7 +448,6 @@ describe("useSegmentWs — 아웃바운드 메시지 전송", () => {
     makeStoreMocks();
     const { result } = renderHook(() => useSegmentWs("proj-1"));
 
-    // readyState는 CONNECTING(0)인 상태
     act(() => {
       result.current.lockSegment("seg-99");
     });

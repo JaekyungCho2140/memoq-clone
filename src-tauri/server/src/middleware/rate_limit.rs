@@ -4,11 +4,7 @@
 //! The rate limiter is stored in `AppState` and checked inside handlers
 //! rather than as a Tower layer, to keep `TestServer` compatibility.
 
-use governor::{
-    clock::QuantaClock,
-    state::keyed::DefaultKeyedStateStore,
-    Quota, RateLimiter,
-};
+use governor::{clock::QuantaClock, state::keyed::DefaultKeyedStateStore, Quota, RateLimiter};
 use std::{num::NonZeroU32, sync::Arc};
 
 pub type KeyedLimiter = RateLimiter<String, DefaultKeyedStateStore<String>, QuantaClock>;

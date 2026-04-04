@@ -145,10 +145,7 @@ async fn test_create_assignment_rejects_non_vendor_user() {
             format!("Bearer {}", ctx.owner_token).parse().unwrap(),
         )
         .await;
-    let owner_id = me_resp.json::<Value>()["id"]
-        .as_str()
-        .unwrap()
-        .to_string();
+    let owner_id = me_resp.json::<Value>()["id"].as_str().unwrap().to_string();
 
     let resp = ctx
         .server

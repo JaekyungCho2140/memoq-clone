@@ -52,6 +52,9 @@ export function SegmentList() {
             return (
               <div
                 key={seg.id}
+                data-testid="segment-row"
+                data-segment-id={seg.id}
+                data-segment-status={seg.status}
                 className={`segment-row${idx === currentSegmentIndex ? " active" : ""}`}
                 style={{
                   position: "absolute",
@@ -68,11 +71,16 @@ export function SegmentList() {
                   {!hasError && hasWarning && <span className="qa-dot qa-dot-warning" title="QA 경고" />}
                 </span>
                 <span className="col-source">{seg.source.slice(0, 60)}</span>
-                <span className="col-target">
+                <span className="col-target" data-testid="segment-target">
                   {seg.target ? seg.target.slice(0, 60) : <em>—</em>}
                 </span>
                 <span className="col-status">
-                  <span className="status-badge" style={{ background: badge.bg }}>
+                  <span
+                    className="status-badge"
+                    data-testid="segment-status-badge"
+                    data-status={seg.status}
+                    style={{ background: badge.bg }}
+                  >
                     {badge.label}
                   </span>
                 </span>

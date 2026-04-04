@@ -127,7 +127,11 @@ pub fn align(sources: &[String], targets: &[String]) -> AlignmentResult {
 
     // Score matrix
     let scores: Vec<Vec<f64>> = (0..n)
-        .map(|i| (0..m).map(|j| pair_score(&sources[i], &targets[j])).collect())
+        .map(|i| {
+            (0..m)
+                .map(|j| pair_score(&sources[i], &targets[j]))
+                .collect()
+        })
         .collect();
 
     // DP table: dp[i][j] = best total score aligning sources[0..i] with targets[0..j]
@@ -189,8 +193,10 @@ pub fn align(sources: &[String], targets: &[String]) -> AlignmentResult {
     }
     pairs.reverse();
 
-    let matched_src: std::collections::HashSet<usize> = pairs.iter().map(|p| p.source_idx).collect();
-    let matched_tgt: std::collections::HashSet<usize> = pairs.iter().map(|p| p.target_idx).collect();
+    let matched_src: std::collections::HashSet<usize> =
+        pairs.iter().map(|p| p.source_idx).collect();
+    let matched_tgt: std::collections::HashSet<usize> =
+        pairs.iter().map(|p| p.target_idx).collect();
 
     AlignmentResult {
         unmatched_source: n - matched_src.len(),
@@ -278,6 +284,10 @@ mod tests {
         let tgt = vec!["매출: 1000 USD".to_string()];
         let result = align(&src, &tgt);
         assert_eq!(result.pairs.len(), 1);
-        assert!(result.pairs[0].score > 0.3, "score={}", result.pairs[0].score);
+        assert!(
+            result.pairs[0].score > 0.3,
+            "score={}",
+            result.pairs[0].score
+        );
     }
 }

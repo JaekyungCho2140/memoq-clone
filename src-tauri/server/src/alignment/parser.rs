@@ -16,7 +16,10 @@ pub fn extract_sentences(bytes: &[u8], filename: &str) -> Result<Vec<String>> {
     } else if lower.ends_with(".txt") {
         parse_txt(bytes)
     } else {
-        bail!("Unsupported file format: '{}'.  Accepted: .txt, .xliff, .xlf, .docx", filename)
+        bail!(
+            "Unsupported file format: '{}'.  Accepted: .txt, .xliff, .xlf, .docx",
+            filename
+        )
     }
 }
 

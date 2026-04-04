@@ -57,9 +57,17 @@ impl WsState {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClientMsg {
-    Lock { segment_id: String },
-    Unlock { segment_id: String },
-    Update { segment_id: String, target: String, status: String },
+    Lock {
+        segment_id: String,
+    },
+    Unlock {
+        segment_id: String,
+    },
+    Update {
+        segment_id: String,
+        target: String,
+        status: String,
+    },
 }
 
 /// Messages from the server to the browser (broadcast or direct).
@@ -68,7 +76,11 @@ enum ClientMsg {
 pub enum ServerMsg {
     /// Broadcast: someone locked a segment
     #[serde(rename = "segment:lock")]
-    SegmentLocked { segment_id: String, user_id: String, username: String },
+    SegmentLocked {
+        segment_id: String,
+        user_id: String,
+        username: String,
+    },
 
     /// Broadcast: a segment was unlocked
     #[serde(rename = "segment:unlock")]
@@ -121,10 +133,8 @@ pub async fn ws_handler(
         }
     };
 
-    ws.on_upgrade(move |socket| {
-        handle_ws(socket, state, project_id, claims.sub, claims.username)
-    })
-    .into_response()
+    ws.on_upgrade(move |socket| handle_ws(socket, state, project_id, claims.sub, claims.username))
+        .into_response()
 }
 
 // ─── Connection Handler ──────────────────────────────────────────────────────
@@ -343,10 +353,9 @@ async fn handle_ws(
             for seg_id in my_segments {
                 if lock_map.get(&seg_id).map(|l| &l.user_id) == Some(&uid) {
                     lock_map.remove(&seg_id);
-                    let msg = serde_json::to_string(&ServerMsg::SegmentUnlocked {
-                        segment_id: seg_id,
-                    })
-                    .unwrap_or_default();
+                    let msg =
+                        serde_json::to_string(&ServerMsg::SegmentUnlocked { segment_id: seg_id })
+                            .unwrap_or_default();
                     let _ = tx_cleanup.send(msg);
                 }
             }

@@ -81,10 +81,7 @@ pub async fn align_documents(
         let name = field.name().unwrap_or("").to_string();
         match name.as_str() {
             "source_file" => {
-                let fname = field
-                    .file_name()
-                    .unwrap_or("source.txt")
-                    .to_string();
+                let fname = field.file_name().unwrap_or("source.txt").to_string();
                 let bytes = field
                     .bytes()
                     .await
@@ -92,10 +89,7 @@ pub async fn align_documents(
                 source_bytes = Some((fname, bytes));
             }
             "target_file" => {
-                let fname = field
-                    .file_name()
-                    .unwrap_or("target.txt")
-                    .to_string();
+                let fname = field.file_name().unwrap_or("target.txt").to_string();
                 let bytes = field
                     .bytes()
                     .await
@@ -129,10 +123,10 @@ pub async fn align_documents(
     let (tgt_name, tgt_bytes) =
         target_bytes.ok_or_else(|| AppError::BadRequest("Missing 'target_file' field".into()))?;
 
-    let sources =
-        extract_sentences(&src_bytes, &src_name).map_err(|e| AppError::BadRequest(e.to_string()))?;
-    let targets =
-        extract_sentences(&tgt_bytes, &tgt_name).map_err(|e| AppError::BadRequest(e.to_string()))?;
+    let sources = extract_sentences(&src_bytes, &src_name)
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+    let targets = extract_sentences(&tgt_bytes, &tgt_name)
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
     // Run alignment (CPU-bound but fast enough for sync handling)
     let result = align(&sources, &targets);

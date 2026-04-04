@@ -102,15 +102,17 @@ pub async fn get_project(
             "SELECT id, name, source_lang, target_lang, owner_id, created_at, updated_at
              FROM projects WHERE id = ?1",
             params![&id],
-            |row| Ok(Project {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                source_lang: row.get(2)?,
-                target_lang: row.get(3)?,
-                owner_id: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            }),
+            |row| {
+                Ok(Project {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    source_lang: row.get(2)?,
+                    target_lang: row.get(3)?,
+                    owner_id: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            },
         )
         .optional()
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
@@ -140,15 +142,17 @@ pub async fn update_project(
             "SELECT id, name, source_lang, target_lang, owner_id, created_at, updated_at
              FROM projects WHERE id = ?1",
             params![&id],
-            |row| Ok(Project {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                source_lang: row.get(2)?,
-                target_lang: row.get(3)?,
-                owner_id: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            }),
+            |row| {
+                Ok(Project {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    source_lang: row.get(2)?,
+                    target_lang: row.get(3)?,
+                    owner_id: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            },
         )
         .optional()
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))

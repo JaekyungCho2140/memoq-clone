@@ -10,7 +10,7 @@ pub mod vendor;
 
 use axum::{
     middleware,
-    routing::{get, delete, patch, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 
@@ -41,7 +41,10 @@ pub fn api_routes(state: AppState) -> Router {
     // Protected REST routes — require Authorization header
     let protected = Router::new()
         // Projects
-        .route("/projects", get(projects::list_projects).post(projects::create_project))
+        .route(
+            "/projects",
+            get(projects::list_projects).post(projects::create_project),
+        )
         .route(
             "/projects/:id",
             get(projects::get_project)
@@ -51,7 +54,10 @@ pub fn api_routes(state: AppState) -> Router {
         // File upload
         .route("/projects/:projectId/files", post(files::upload_file))
         // Segments
-        .route("/projects/:projectId/segments", get(segments::list_segments))
+        .route(
+            "/projects/:projectId/segments",
+            get(segments::list_segments),
+        )
         .route(
             "/projects/:projectId/segments/:segId",
             patch(segments::update_segment),
@@ -95,9 +101,7 @@ pub fn api_routes(state: AppState) -> Router {
         .route("/projects/:projectId/ws", get(ws::ws_handler))
         .with_state(state);
 
-    Router::new()
-        .merge(protected)
-        .merge(ws_routes)
+    Router::new().merge(protected).merge(ws_routes)
 }
 
 /// Health check (public)

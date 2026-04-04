@@ -27,7 +27,9 @@ pub struct AnalyticsQuery {
 
 impl AnalyticsQuery {
     fn from_clause(&self) -> String {
-        self.from.clone().unwrap_or_else(|| "1970-01-01".to_string())
+        self.from
+            .clone()
+            .unwrap_or_else(|| "1970-01-01".to_string())
     }
     fn to_clause(&self) -> String {
         self.to.clone().unwrap_or_else(|| "9999-12-31".to_string())
@@ -70,11 +72,7 @@ pub struct ProjectStats {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 fn csv_response(body: String) -> Response {
-    (
-        [(header::CONTENT_TYPE, "text/csv; charset=utf-8")],
-        body,
-    )
-        .into_response()
+    ([(header::CONTENT_TYPE, "text/csv; charset=utf-8")], body).into_response()
 }
 
 // ─── GET /api/analytics/team ─────────────────────────────────────────────────
@@ -160,8 +158,7 @@ pub async fn user_analytics(
             .optional()
             .map_err(|e: rusqlite::Error| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        let username =
-            username.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+        let username = username.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
         let stats: UserStats = conn
             .query_row(

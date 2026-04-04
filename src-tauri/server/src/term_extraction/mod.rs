@@ -35,14 +35,12 @@ pub struct TermCandidate {
 
 const STOP_WORDS: &[&str] = &[
     // English
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "shall", "can", "not", "no", "this",
-    "that", "these", "those", "it", "its", "we", "you", "he", "she", "they",
-    "i", "me", "my", "our", "your", "his", "her", "their", "as", "if",
-    "so", "up", "out", "about", "into", "than", "then", "when", "where",
-    "which", "who", "whom",
+    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
+    "will", "would", "could", "should", "may", "might", "shall", "can", "not", "no", "this",
+    "that", "these", "those", "it", "its", "we", "you", "he", "she", "they", "i", "me", "my",
+    "our", "your", "his", "her", "their", "as", "if", "so", "up", "out", "about", "into", "than",
+    "then", "when", "where", "which", "who", "whom",
 ];
 
 fn is_stop_word(token: &str) -> bool {
@@ -62,7 +60,11 @@ fn tokenize(text: &str) -> Vec<String> {
                 .filter(|c| c.is_alphanumeric())
                 .collect::<String>()
                 .to_lowercase();
-            if t.len() >= 2 { Some(t) } else { None }
+            if t.len() >= 2 {
+                Some(t)
+            } else {
+                None
+            }
         })
         .collect()
 }
@@ -206,10 +208,14 @@ mod tests {
     #[test]
     fn extract_single_word_terms() {
         // Repeat a domain word many times
-        let text = "photosynthesis photosynthesis photosynthesis chlorophyll chlorophyll photosynthesis";
+        let text =
+            "photosynthesis photosynthesis photosynthesis chlorophyll chlorophyll photosynthesis";
         let candidates = extract_terms(text, 10);
         let terms: Vec<&str> = candidates.iter().map(|c| c.term.as_str()).collect();
-        assert!(terms.contains(&"photosynthesis"), "should find photosynthesis");
+        assert!(
+            terms.contains(&"photosynthesis"),
+            "should find photosynthesis"
+        );
         assert!(terms.contains(&"chlorophyll"), "should find chlorophyll");
     }
 
@@ -256,7 +262,10 @@ mod tests {
         let text = "hapax legomenon this word only once unique_term alpha alpha alpha";
         let candidates = extract_terms(text, 20);
         let terms: Vec<&str> = candidates.iter().map(|c| c.term.as_str()).collect();
-        assert!(!terms.contains(&"hapax"), "single-occurrence term should be filtered");
+        assert!(
+            !terms.contains(&"hapax"),
+            "single-occurrence term should be filtered"
+        );
     }
 
     #[test]
@@ -264,7 +273,11 @@ mod tests {
         let text = "neural network neural network deep neural network deep learning";
         let candidates = extract_terms(text, 20);
         for c in &candidates {
-            assert!(c.score > 0.0, "all scores should be positive, got {}", c.score);
+            assert!(
+                c.score > 0.0,
+                "all scores should be positive, got {}",
+                c.score
+            );
         }
     }
 
@@ -276,9 +289,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join(" ");
         let candidates = extract_terms(&text, 20);
-        let bigram = candidates
-            .iter()
-            .find(|c| c.term == "deep learning");
+        let bigram = candidates.iter().find(|c| c.term == "deep learning");
         let unigram_deep = candidates.iter().find(|c| c.term == "deep");
         if let (Some(b), Some(u)) = (bigram, unigram_deep) {
             assert!(

@@ -1,6 +1,9 @@
-use axum::{extract::{Path, State}, Json};
-use axum::extract::Multipart;
 use axum::body::Bytes;
+use axum::extract::Multipart;
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use chrono::Utc;
 use rusqlite::params;
 use uuid::Uuid;
@@ -68,7 +71,9 @@ pub async fn upload_file(
     }
 
     if !found {
-        return Err(AppError::BadRequest("No 'file' field in request".to_string()));
+        return Err(AppError::BadRequest(
+            "No 'file' field in request".to_string(),
+        ));
     }
 
     // Parse based on extension
@@ -98,7 +103,13 @@ pub async fn upload_file(
         conn.execute(
             "INSERT INTO project_files (id, project_id, name, file_path, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![&fid, &project_id_clone, &file_name_clone, &file_name_clone, &now_clone],
+            params![
+                &fid,
+                &project_id_clone,
+                &file_name_clone,
+                &file_name_clone,
+                &now_clone
+            ],
         )
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         Ok(())
@@ -120,7 +131,11 @@ pub async fn upload_file(
                     &(i as i64),
                     &seg.source,
                     &seg.target,
-                    if seg.target.is_empty() { "untranslated" } else { "translated" },
+                    if seg.target.is_empty() {
+                        "untranslated"
+                    } else {
+                        "translated"
+                    },
                     &now2,
                 ],
             )

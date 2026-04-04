@@ -118,7 +118,11 @@ export function ProjectDashboard() {
           >
             💾 저장
           </button>
-          <button className="pd-btn pd-btn-primary" onClick={handleOpenInEditor}>
+          <button
+            className="pd-btn pd-btn-primary"
+            data-testid="open-editor-btn"
+            onClick={handleOpenInEditor}
+          >
             ✏ 번역 편집기 열기
           </button>
         </div>

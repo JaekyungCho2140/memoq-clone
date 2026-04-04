@@ -156,7 +156,7 @@ export function TmPanel() {
   };
 
   return (
-    <div className="tm-panel">
+    <div className="tm-panel" data-testid="tm-panel">
       <div className="panel-header">
         <div className="panel-tabs">
           <button
@@ -219,10 +219,10 @@ export function TmPanel() {
           )}
 
           {matches.length === 0 ? (
-            <p className="no-matches">매치 없음</p>
+            <p className="no-matches" data-testid="tm-no-matches">매치 없음</p>
           ) : (
             matches.map((m, i) => (
-              <div key={i} className="tm-match" onClick={() => applyMatch(m.target)}>
+              <div key={i} className="tm-match" data-testid="tm-match" onClick={() => applyMatch(m.target)}>
                 <div className="match-score">{Math.round(m.score * 100)}%</div>
                 <div className="match-source">{m.source}</div>
                 <div className="match-target">{m.target}</div>

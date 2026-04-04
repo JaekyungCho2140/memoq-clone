@@ -9,8 +9,7 @@ async fn setup() -> (TestServer, String) {
     let db_id = DB_COUNTER.fetch_add(1, Ordering::Relaxed);
     let db_name = format!("aligntest_{}", db_id);
 
-    let pool =
-        server::db::in_memory_pool_named(&db_name).expect("in-memory pool");
+    let pool = server::db::in_memory_pool_named(&db_name).expect("in-memory pool");
     server::db::run_migrations(&pool).await.expect("migration");
 
     let config = server::config::Config {

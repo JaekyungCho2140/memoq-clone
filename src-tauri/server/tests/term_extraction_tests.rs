@@ -75,7 +75,10 @@ async fn test_extract_returns_candidates() {
     let body = resp.json::<Value>();
     assert_eq!(body["source_lang"], "en");
     let candidates = body["candidates"].as_array().expect("candidates array");
-    assert!(!candidates.is_empty(), "should return at least one candidate");
+    assert!(
+        !candidates.is_empty(),
+        "should return at least one candidate"
+    );
     // Verify each candidate has the expected fields
     for c in candidates {
         assert!(c["term"].is_string());
@@ -135,9 +138,7 @@ async fn test_extract_missing_file_returns_400() {
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token).parse().unwrap(),
         )
-        .multipart(
-            axum_test::multipart::MultipartForm::new().add_text("source_lang", "en"),
-        )
+        .multipart(axum_test::multipart::MultipartForm::new().add_text("source_lang", "en"))
         .await;
 
     assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);

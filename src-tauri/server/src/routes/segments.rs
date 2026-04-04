@@ -72,9 +72,10 @@ pub async fn update_segment(
     let mt_used = body.mt_used.unwrap_or(false) as i64;
     let tm_match_score = body.tm_match_score;
 
-    let seg = run_db(pool, move |conn| {
-        // Verify segment belongs to this project
-        let seg: Option<Segment> = conn
+    let seg =
+        run_db(pool, move |conn| {
+            // Verify segment belongs to this project
+            let seg: Option<Segment> = conn
             .query_row(
                 "SELECT s.id, s.file_id, s.seg_order, s.source, s.target, s.status, s.updated_at
                  FROM segments s
@@ -94,50 +95,64 @@ pub async fn update_segment(
             .optional()
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        let current = seg.ok_or_else(|| AppError::NotFound("Segment not found".to_string()))?;
+            let current = seg.ok_or_else(|| AppError::NotFound("Segment not found".to_string()))?;
 
-        let new_target = body.target.as_deref().unwrap_or(&current.target).to_string();
-        let new_status = body.status.as_deref().unwrap_or(&current.status).to_string();
+            let new_target = body
+                .target
+                .as_deref()
+                .unwrap_or(&current.target)
+                .to_string();
+            let new_status = body
+                .status
+                .as_deref()
+                .unwrap_or(&current.status)
+                .to_string();
 
-        conn.execute(
-            "UPDATE segments SET target=?1, status=?2, updated_at=?3 WHERE id=?4",
-            params![&new_target, &new_status, &now, &seg_id],
-        )
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+            conn.execute(
+                "UPDATE segments SET target=?1, status=?2, updated_at=?3 WHERE id=?4",
+                params![&new_target, &new_status, &now, &seg_id],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        // Determine action label: "confirm" if status becomes "confirmed", else "save"
-        let action = if new_status == "confirmed" { "confirm" } else { "save" };
-        let event_id = Uuid::new_v4().to_string();
-        conn.execute(
-            "INSERT INTO translation_events
+            // Determine action label: "confirm" if status becomes "confirmed", else "save"
+            let action = if new_status == "confirmed" {
+                "confirm"
+            } else {
+                "save"
+            };
+            let event_id = Uuid::new_v4().to_string();
+            conn.execute(
+                "INSERT INTO translation_events
              (id, user_id, project_id, segment_id, action, mt_used, tm_match_score, timestamp)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                &event_id, &user_id, &project_id, &seg_id,
-                action, mt_used, tm_match_score, &now
-            ],
-        )
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+                params![
+                    &event_id,
+                    &user_id,
+                    &project_id,
+                    &seg_id,
+                    action,
+                    mt_used,
+                    tm_match_score,
+                    &now
+                ],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        Ok(Segment {
-            target: new_target,
-            status: new_status,
-            updated_at: now,
-            ..current
+            Ok(Segment {
+                target: new_target,
+                status: new_status,
+                updated_at: now,
+                ..current
+            })
         })
-    })
-    .await?;
+        .await?;
 
     Ok(Json(seg))
 }
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
-async fn ensure_project_owner(
-    state: &AppState,
-    project_id: &str,
-    user_id: &str,
-) -> AppResult<()> {
+async fn ensure_project_owner(state: &AppState, project_id: &str, user_id: &str) -> AppResult<()> {
     let pid = project_id.to_string();
     let uid = user_id.to_string();
     let pool = state.pool.clone();

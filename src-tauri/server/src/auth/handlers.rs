@@ -155,7 +155,9 @@ pub async fn login(
     let token_hash = hash_token(&refresh_token);
     let refresh_id = Uuid::new_v4().to_string();
     let refresh_expires = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(state.config.jwt_refresh_expiry_secs))
+        .checked_add_signed(chrono::Duration::seconds(
+            state.config.jwt_refresh_expiry_secs,
+        ))
         .unwrap_or_default()
         .to_rfc3339();
     let now = Utc::now().to_rfc3339();
@@ -233,15 +235,17 @@ pub async fn refresh_token(
             "SELECT id, username, email, password_hash, role, created_at, updated_at
              FROM users WHERE id = ?1",
             params![&user_id],
-            |row| Ok(User {
-                id: row.get(0)?,
-                username: row.get(1)?,
-                email: row.get(2)?,
-                password_hash: row.get(3)?,
-                role: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            }),
+            |row| {
+                Ok(User {
+                    id: row.get(0)?,
+                    username: row.get(1)?,
+                    email: row.get(2)?,
+                    password_hash: row.get(3)?,
+                    role: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            },
         )
         .optional()
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
@@ -254,7 +258,9 @@ pub async fn refresh_token(
     let new_token_hash = hash_token(&new_refresh_token);
     let new_refresh_id = Uuid::new_v4().to_string();
     let refresh_expires = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(state.config.jwt_refresh_expiry_secs))
+        .checked_add_signed(chrono::Duration::seconds(
+            state.config.jwt_refresh_expiry_secs,
+        ))
         .unwrap_or_default()
         .to_rfc3339();
     let now2 = Utc::now().to_rfc3339();
@@ -265,7 +271,13 @@ pub async fn refresh_token(
         conn.execute(
             "INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at, revoked)
              VALUES (?1, ?2, ?3, ?4, ?5, 0)",
-            params![&new_refresh_id, &uid2, &new_token_hash, &refresh_expires, &now2],
+            params![
+                &new_refresh_id,
+                &uid2,
+                &new_token_hash,
+                &refresh_expires,
+                &now2
+            ],
         )
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         Ok(())
@@ -297,7 +309,9 @@ pub async fn logout(
     })
     .await?;
 
-    Ok(Json(serde_json::json!({ "message": "Logged out successfully" })))
+    Ok(Json(
+        serde_json::json!({ "message": "Logged out successfully" }),
+    ))
 }
 
 /// GET /api/auth/me
@@ -312,15 +326,17 @@ pub async fn me(
             "SELECT id, username, email, password_hash, role, created_at, updated_at
              FROM users WHERE id = ?1",
             params![&user_id],
-            |row| Ok(User {
-                id: row.get(0)?,
-                username: row.get(1)?,
-                email: row.get(2)?,
-                password_hash: row.get(3)?,
-                role: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            }),
+            |row| {
+                Ok(User {
+                    id: row.get(0)?,
+                    username: row.get(1)?,
+                    email: row.get(2)?,
+                    password_hash: row.get(3)?,
+                    role: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            },
         )
         .optional()
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
@@ -386,4 +402,3 @@ pub(crate) fn hash_token(token: &str) -> String {
     }
     format!("{:016x}", hash)
 }
-
