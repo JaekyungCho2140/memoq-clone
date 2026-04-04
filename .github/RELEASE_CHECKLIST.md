@@ -75,6 +75,45 @@ _Manual — QA Manager must sign off before canary deployment._
 - [ ] XLIFF 2.0 import works (if supported)
 - [ ] Export file opens in reference tool (memoQ / OmegaT) without errors
 - [ ] File with special characters in path imports correctly
+- [ ] Large file (500+ segments) imports without timeout or UI freeze
+
+### Terminology Extraction (AFR-48)
+
+- [ ] Terminology extraction runs on an imported file without error
+- [ ] Extracted term list is non-empty for a file containing known terms
+- [ ] Terms are highlighted inline in the segment editor
+- [ ] Term glossary export generates a valid file
+
+### TM Alignment Engine (AFR-46)
+
+- [ ] Alignment import UI is accessible from TM settings
+- [ ] Aligned segment pairs import into the TM without error
+- [ ] Aligned pairs appear in TM lookup results
+
+### Plugin System
+
+- [ ] Plugin list is accessible in Settings → Plugins
+- [ ] `example-mt-provider` WASM plugin appears in the list and status is "loaded"
+- [ ] Plugin-provided MT suggestions appear in the translation editor
+- [ ] Disabling a plugin stops its suggestions without crash
+
+### Vendor Portal (AFR-44)
+
+- [ ] Vendor Portal section is reachable from the main navigation
+- [ ] Vendor role assignment UI renders without crash
+- [ ] Vendor can be assigned to a project without error
+
+### Authentication & Security (AFR-49)
+
+- [ ] Login / authentication flow completes successfully
+- [ ] Unauthenticated access to protected routes is redirected
+- [ ] Session expires cleanly — user is prompted to re-authenticate
+
+### Auto-Updater
+
+- [ ] In-app update check runs without crash
+- [ ] Update notification appears when a newer version is available (test with staged manifest)
+- [ ] Applying the update does not corrupt existing project data
 
 ### Network Disconnected Scenario
 
@@ -92,6 +131,7 @@ _Manual — QA Manager must sign off before canary deployment._
 
 - [ ] Issues fixed in this release are verified as resolved
 - [ ] No previously passing smoke tests now fail
+- [ ] Automated smoke suite (`npm run test:smoke`) passes on macOS and Windows runners
 
 ---
 

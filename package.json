@@ -9,6 +9,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke": "playwright test tests/smoke/ --project=smoke",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "version:sync": "node scripts/sync-version.js"
